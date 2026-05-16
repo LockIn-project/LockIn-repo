@@ -1,0 +1,26 @@
+{
+    "manifest_version": 3,
+    "name": "LockIn",
+    "version": "1.0",
+    "description": "Track browser activity, detect idle time, and help users become more productive",
+    "icons": {
+        "48": "icons/icon48.png"
+    },
+    "background": {
+        "service_worker": "background.js"
+    },
+    "action": {
+        "default_popup": "popup.html",
+        "default_icon": "icons/icon2.png"
+    },
+    "permissions": [
+        "tabs",
+        "storage",
+        "notifications",
+        "activeTab",
+        "scripting",
+        "alarms",
+        "idle",
+        "history"
+    ]
+}
