@@ -17,36 +17,55 @@ model User {
 }
 
 model Session {
-  id                String   @id @default(cuid())
-  userId            String
+  id                 String         @id @default(uuid())
+  userId             String
 
-  productiveMinutes Int
-  distractionCount  Int
-  idleTime          Int
-  focusScore        Float
+  productiveMinutes  Int            @default(0)
+  distractionCount   Int            @default(0)
+  idleTime           Int            @default(0)
 
-  startedAt         DateTime
-  endedAt           DateTime
+  focusScore         Float          @default(50)
 
-  user              User @relation(fields: [userId], references: [id])
+  status             SessionStatus  @default(ACTIVE)
+
+  startedAt          DateTime       @default(now())
+  endedAt            DateTime?
+
+  lastUpdatedAt      DateTime       @updatedAt
+
+  adaptiveState      Json?
+
+  user               User           @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([status])
+}
+
+enum SessionStatus {
+  ACTIVE
+  COMPLETED
+  ABANDONED
 }
 
 model Streak {
-  id            String @id @default(cuid())
-  userId        String @unique
+  id            String   @id @default(cuid())
+  userId        String   @unique
 
   currentStreak Int
   longestStreak Int
   lastActive    DateTime
 
-  user          User @relation(fields: [userId], references: [id])
+  user          User     @relation(fields: [userId], references: [id])
 }
 
 model Achievement {
   id         String   @id @default(cuid())
   userId     String
+
   type       String
   unlockedAt DateTime @default(now())
 
-  user       User @relation(fields: [userId], references: [id])
+  user       User     @relation(fields: [userId], references: [id])
+
+  @@index([userId])
 }
