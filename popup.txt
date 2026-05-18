@@ -6,7 +6,6 @@
     <title>LockIn</title>
     <link rel="stylesheet" type="text/css" href="popup.css">
 </head>
-<script src="script.js"></script>
 <body>
     <section class="popup-section">
         <div class="header-compact-container">
@@ -29,27 +28,41 @@
                 </span>
             </div>
 
-            <div class="session-wrapper">
-                <span class="session-header-text">
-                    Quick Sessions
-                </span>
+            <div class="today-goal-wrapper">
+                <div class="today-container">
+                    <span class="today-text">
+                        TODAY
+                    </span>
 
-                <div class="quick-sessions-container">
-                    <button class="fifteenMin-btn" onclick="quickie_fifteen(document.querySelector('.session-wrapper'))">
-                        15m
-                    </button>
+                    <span class="today-time">
+                        3h 5m <!--should implement dynamic time-->
+                    </span>
+                </div>
 
-                    <button class="thirtyMin-btn" onclick="quickie_thirty(document.querySelector('.session-wrapper'))">
-                        30m
-                    </button>
-                    
-                    <button class="fortyfiveMin-btn" onclick="quickie_fortyfive(document.querySelector('.session-wrapper'))">
-                        45m
-                    </button>
+                <div class="goal-container">
+                    <span class="goal-text">
+                        GOAL
+                    </span>
 
-                    <button class="sixtyMin-btn" onclick="quickie_sixty(document.querySelector('.session-wrapper'))">
-                        60m
-                    </button>
+                    <span class="goal-time">
+                        4h 0m <!--should implement dynamic time-->
+                    </span>
+                </div>
+            </div>
+
+            <div class="progress-bar-wrapper">
+                <div class="bar-percent-container">
+                    <span class="progress-text">
+                        Daily Progress
+                    </span>
+
+                    <span class="progress-percent">
+                        77% <!--Should be dynamic too-->
+                    </span>
+                </div>
+
+                <div class="progress-container">
+                    <div class="progress-bar"></div>
                 </div>
             </div>
 
@@ -61,7 +74,7 @@
             </div>
 
             <div class="view-session-container">
-                <button class="view-btn" onclick="popUp_extension(document.querySelector('.quick-sessions-container'))">
+                <button class="view-btn">
                     <img src="icons/down.png" class="view-icon">
                     View Details
                 </button>

@@ -173,7 +173,7 @@ html, body {
     display: flex;
     align-items: center;
     justify-content: center;
-    background-color: #94B4C1;
+    background-color: #547792;
     color: white;
     font-weight: bold;
     padding: 5px 55px;
@@ -184,8 +184,12 @@ html, body {
 }
 
 .start-btn:hover,
-.view-btn:hover {
-    background-color: #547792;
+.view-btn:hover,
+.fifteenMin-btn:hover,
+.thirtyMin-btn:hover,
+.fortyfiveMin-btn:hover,
+.sixtyMin-btn:hover {
+    background-color: #213448;
 }
 
 .start-icon {
@@ -203,7 +207,7 @@ html, body {
     display: flex;
     align-items: center;
     justify-content: center;
-    background-color: #94B4C1;
+    background-color: #547792;
     color: white;
     font-weight: bold;
     padding: 5px 10px;
@@ -219,3 +223,36 @@ html, body {
     width: 18px;
 }
 
+.session-header-text {
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+    font-size: 12px;
+    font-weight: 500;
+    display: flex;
+    align-items: flex-start;
+    margin: 10px 0 0 20px;
+}
+
+.session-wrapper {
+    display: flex;
+    flex-direction: column;
+}
+
+.quick-sessions-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+    margin: 5px 0 10px 0;
+}
+
+.fifteenMin-btn,
+.thirtyMin-btn,
+.fortyfiveMin-btn,
+.sixtyMin-btn {
+    padding: 5px 10px;
+    border-radius: 10px;
+    cursor: pointer;
+    background-color: #547792;
+    color: white;
+    border-color: white;
+}
