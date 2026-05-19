@@ -5,6 +5,20 @@ function popUp_extension(quick_session){
     quick_session.innerHTML = "";
 }
 
+document.addEventListener("DOMContentLoaded", () => {
+  const buttons = document.querySelectorAll(
+    ".fifteenMin-btn, .thirtyMin-btn, .fortyfiveMin-btn, .sixtyMin-btn"
+  );
+
+  buttons.forEach(btn => {
+    btn.addEventListener("click", () => {
+      buttons.forEach(b => b.classList.remove("min-btn-selected"));
+      btn.classList.add("min-btn-selected");
+    });
+  });
+});
+
+
 document.addEventListener("DOMContentLoaded", function() {
     document.querySelector('.fifteenMin-btn').addEventListener('click', function() {
         clearInterval(timerInterval);
@@ -110,8 +124,21 @@ function startSession() {
 function showBreakStopButtons() {
     const container = document.querySelector('.start-session-container');
     container.innerHTML = `
-        <button class="break-btn" id="break-btn">Break</button>
-        <button class="stop-btn" id="stop-btn">Stop</button>
+        <div class="break_stop_container">
+            <div class"btns-stop-break">
+                <button class="break-btn" id="break-btn">
+                    <img src="icons/break.png" class="stop-break-icon">
+                    Break
+                </button>
+            </div>
+
+            <div class"btns-stop-break">
+                <button class="stop-btn" id="stop-btn">
+                    <img src="icons/stop.png" class="stop-break-icon">
+                    Stop
+                </button>
+            </div>
+        </div>
     `;
     document.getElementById('break-btn').addEventListener('click', takeBreak);
     document.getElementById('stop-btn').addEventListener('click', stopSession);
