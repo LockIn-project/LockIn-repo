@@ -224,7 +224,22 @@ html, body {
 .thirtyMin-btn:hover,
 .fortyfiveMin-btn:hover,
 .sixtyMin-btn:hover {
-    background-color: #452829;
+    background-color: #242527;
+    border-radius: 7px;
+}
+
+
+
+.min-btn-selected,
+.fifteenMin-btn:active,
+.fifteenMin-btn:focus,
+.thirtyMin-btn:active,
+.thirtyMin-btn:focus,
+.fortyfiveMin-btn:active,
+.fortyfiveMin-btn:focus,
+.sixtyMin-btn:active,
+.sixtyMin-btn:focus{
+    background-color: #242527;
     border-radius: 7px;
 }
 
@@ -265,8 +280,8 @@ html, body {
     align-items: flex-start;
     margin-top: 5px;
     margin-bottom: 10px;
-    color: #213448;
-    font-weight: 700;
+    color: #2b2b2b4f;
+    font-weight: 450;
 }
 
 .session-wrapper {
@@ -274,11 +289,19 @@ html, body {
     flex-direction: column;
 }
 
+.quickie-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    padding: 15px;
+    background-color: #452829;
+}
+
 .quick-sessions-container {
     display: flex;
     justify-content: center;
     align-items: center;
-    gap: 5px;
 }
 
 .fifteenMin-btn,
@@ -306,7 +329,7 @@ html, body {
 }
 
 .min-btn-selected {
-  background-color: #213448; 
+  background-color: #242527; 
   outline: none;
 }
 
@@ -314,6 +337,7 @@ html, body {
     display: flex;
     justify-content: center;
     align-items: center;
+    gap: 10px;
 }
 
 .today-goal-container {
