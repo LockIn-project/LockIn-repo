@@ -138,7 +138,7 @@ function updateBreakDisplay() {
 
     let break_text = document.createElement('span');
     break_text.className = "break-text";
-    break_text.textContent = "Take a well deserved rest.";
+    break_text.textContent = "REST: ";
 
     let break_time = document.createElement('span');
     break_time.className = "break-time";
@@ -271,8 +271,10 @@ function stopSession() {
     isQuickieMode = false;
     isOnBreak = false;
     originalSessionDuration = 0;
-    const output = document.querySelector('.session-output');
-    output.innerHTML = "";
+    const output = document.querySelector('.today-time');
+    output.innerHTML = "0h 0m";
+    const mascot_text = document.querySelector('.dynamic-motivation-text');
+    mascot_text.innerHTML = "Let's get back to work, and perform better.";
     showStartButton();
     
     // Remove selection from buttons
