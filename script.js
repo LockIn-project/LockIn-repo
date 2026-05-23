@@ -11,6 +11,54 @@ function popUp_extension(quick_session){
     quick_session.innerHTML = "";
 }
 
+// Save state to chrome storage
+function saveState() {
+    chrome.storage.local.set({
+        sessionDuration: sessionDuration,
+        sessionBreak: sessionBreak,
+        isQuickieMode: isQuickieMode,
+        hasSelection: hasSelection,
+        originalSessionDuration: originalSessionDuration,
+        isOnBreak: isOnBreak
+    });
+}
+
+// Load state from chrome storage
+function loadState(callback) {
+    chrome.storage.local.get([
+        'sessionDuration',
+        'sessionBreak',
+        'isQuickieMode',
+        'hasSelection',
+        'originalSessionDuration',
+        'isOnBreak'
+    ], (result) => {
+        if (result.sessionDuration !== undefined) {
+            sessionDuration = result.sessionDuration;
+            originalSessionDuration = result.originalSessionDuration || result.sessionDuration;
+            isQuickieMode = result.isQuickieMode;
+            hasSelection = result.hasSelection;
+            isOnBreak = result.isOnBreak;
+            sessionBreak = result.sessionBreak || 0;
+            
+            // Update UI
+            updateQuickieDisplay();
+            
+            // Re-highlight the selected button based on time
+            if (sessionDuration > 0) {
+                const minutes = Math.floor(sessionDuration / 60);
+                const btnMap = {15: 'fifteenMin-btn', 30: 'thirtyMin-btn', 45: 'fortyfiveMin-btn', 60: 'sixtyMin-btn'};
+                const selectedBtn = btnMap[minutes];
+                if (selectedBtn) {
+                    const btn = document.querySelector('.' + selectedBtn);
+                    if (btn) btn.classList.add('min-btn-selected');
+                }
+            }
+        }
+        if (callback) callback();
+    });
+}
+
 function showConfirmOverlay(message, onConfirm, onCancel) {
     const overlay = document.getElementById('confirmation-overlay');
     const text = document.getElementById('confirmation-text');
@@ -41,7 +89,8 @@ function showConfirmOverlay(message, onConfirm, onCancel) {
     noBtn.addEventListener('click', handleNo);
 }
 
-document.addEventListener("DOMContentLoaded", () => {
+// Initialize button handlers
+function initButtonHandlers() {
     const buttons = document.querySelectorAll(
         ".fifteenMin-btn, .thirtyMin-btn, .fortyfiveMin-btn, .sixtyMin-btn"
     );
@@ -56,14 +105,16 @@ document.addEventListener("DOMContentLoaded", () => {
     buttons.forEach(btn => {
         btn.addEventListener("click", () => {
             const duration = durations[btn.classList[0]];
-            const btnClass = btn.classList[0];
             
-            // If timer is running, show overlay confirmation to switch
-            if (timerInterval) {
+            // Only block switching if session timer is running (not break timer)
+            // Allow switching during break
+            const isSessionRunning = timerInterval && !isOnBreak;
+            
+            if (isSessionRunning) {
                 // Store the previously selected button to restore on "No"
                 const previouslySelected = document.querySelector('.min-btn-selected');
                 
-                pendingDuration = { duration, btnClass };
+                pendingDuration = { duration };
                 showConfirmOverlay(
                     `Switch from current session to ${duration} minutes?`,
                     () => {
@@ -80,6 +131,7 @@ document.addEventListener("DOMContentLoaded", () => {
                         originalSessionDuration = sessionDuration;
                         updateQuickieDisplay();
                         hasSelection = false;
+                        saveState();
                         
                         // Immediately start the new session
                         setTimeout(() => startSession(), 0);
@@ -97,7 +149,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 return;
             }
             
-            // If timer not running, allow selection
+            // If timer not running or only break timer is running, allow selection
             buttons.forEach(b => b.classList.remove("min-btn-selected"));
             btn.classList.add("min-btn-selected");
             
@@ -107,16 +159,23 @@ document.addEventListener("DOMContentLoaded", () => {
             sessionDuration = duration * 60;
             originalSessionDuration = sessionDuration;
             updateQuickieDisplay();
+            saveState();
         });
     });
-});
-
-
-document.addEventListener("DOMContentLoaded", function() {
-    document.getElementById('view-details-btn').addEventListener('click', function() {
+    
+    document.getElementById('view-details-btn')?.addEventListener('click', function() {
         popUp_extension(document.querySelector('.quick-sessions-container'));
     });
-    document.querySelector('.start-btn').addEventListener('click', startSession);
+    document.querySelector('.start-btn')?.addEventListener('click', startSession);
+}
+
+// Load saved state and initialize
+document.addEventListener("DOMContentLoaded", () => {
+    // Load saved state first
+    loadState(() => {
+        // Initialize button handlers after state is loaded
+        initButtonHandlers();
+    });
 });
 
 function updateDisplay() {
@@ -231,6 +290,7 @@ function startSession() {
     }, 1000);
     
     showBreakStopButtons();
+    saveState();
 }
 
 function showBreakStopButtons() {
@@ -330,6 +390,7 @@ function stopSession() {
         ".fifteenMin-btn, .thirtyMin-btn, .fortyfiveMin-btn, .sixtyMin-btn"
     );
     buttons.forEach(btn => btn.classList.remove("min-btn-selected"));
+    saveState();
 }
 
 function resumeSession() {
@@ -338,7 +399,7 @@ function resumeSession() {
 
     let continue_text = document.createElement('span');
     continue_text.textContent = "Let's get back to work and perform better!" 
-
+    
     output.appendChild(continue_text);
 
     clearInterval(timerInterval);
@@ -352,7 +413,7 @@ function resumeSession() {
     updateQuickieDisplay(); // Back to quickie display
     showBreakStopButtons(); // Reset buttons to break and stop
     // Change the continue button back to a break button
-
+    
     timerInterval = setInterval(() => {
         sessionDuration--;
         if (sessionDuration <= 0) {
