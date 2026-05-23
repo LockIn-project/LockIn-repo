@@ -425,3 +425,69 @@ html, body {
     font-weight: 650;
     font-size: 13px;
 }
+
+.confirmation-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.confirmation-dialog {
+    background-color: #213448;
+    border-radius: 15px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    align-items: center;
+    max-width: 250px;
+}
+
+.confirmation-text {
+    color: #EAE0CF;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: 14px;
+    text-align: center;
+}
+
+.confirmation-buttons {
+    display: flex;
+    gap: 10px;
+}
+
+.confirmation-btn {
+    padding: 8px 20px;
+    border: none;
+    border-radius: 8px;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-weight: 600;
+    cursor: pointer;
+    font-size: 13px;
+}
+
+.yes-btn {
+    background-color: #16c83da8;
+    color: white;
+}
+
+.yes-btn:hover {
+    background-color: #16c83d;
+}
+
+.no-btn {
+    background-color: #94161a;
+    color: white;
+}
+
+.no-btn:hover {
+    background-color: #b31e1e;
+}

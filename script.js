@@ -2,76 +2,117 @@ let sessionDuration = 0;
 let sessionBreak = 0;
 let timerInterval = null;
 let isQuickieMode = false;
+let hasSelection = false;
 let originalSessionDuration = 0;
 let isOnBreak = false;
+let pendingDuration = null;
 
 function popUp_extension(quick_session){
     quick_session.innerHTML = "";
 }
 
-document.addEventListener("DOMContentLoaded", () => {
-  const buttons = document.querySelectorAll(
-    ".fifteenMin-btn, .thirtyMin-btn, .fortyfiveMin-btn, .sixtyMin-btn"
-  );
+function showConfirmOverlay(message, onConfirm, onCancel) {
+    const overlay = document.getElementById('confirmation-overlay');
+    const text = document.getElementById('confirmation-text');
+    const yesBtn = document.getElementById('confirm-yes');
+    const noBtn = document.getElementById('confirm-no');
+    
+    text.textContent = message;
+    overlay.style.display = 'flex';
+    
+    const handleYes = () => {
+        overlay.style.display = 'none';
+        if (onConfirm) onConfirm();
+        cleanup();
+    };
+    
+    const handleNo = () => {
+        overlay.style.display = 'none';
+        if (onCancel) onCancel();
+        cleanup();
+    };
+    
+    const cleanup = () => {
+        yesBtn.removeEventListener('click', handleYes);
+        noBtn.removeEventListener('click', handleNo);
+    };
+    
+    yesBtn.addEventListener('click', handleYes);
+    noBtn.addEventListener('click', handleNo);
+}
 
-  buttons.forEach(btn => {
-    btn.addEventListener("click", () => {
-      buttons.forEach(b => b.classList.remove("min-btn-selected"));
-      btn.classList.add("min-btn-selected");
-      
-      // Set quickie mode and update display
-      isQuickieMode = true;
-      updateQuickieDisplay();
+document.addEventListener("DOMContentLoaded", () => {
+    const buttons = document.querySelectorAll(
+        ".fifteenMin-btn, .thirtyMin-btn, .fortyfiveMin-btn, .sixtyMin-btn"
+    );
+
+    const durations = {
+        'fifteenMin-btn': 15,
+        'thirtyMin-btn': 30,
+        'fortyfiveMin-btn': 45,
+        'sixtyMin-btn': 60
+    };
+
+    buttons.forEach(btn => {
+        btn.addEventListener("click", () => {
+            const duration = durations[btn.classList[0]];
+            const btnClass = btn.classList[0];
+            
+            // If timer is running, show overlay confirmation to switch
+            if (timerInterval) {
+                // Store the previously selected button to restore on "No"
+                const previouslySelected = document.querySelector('.min-btn-selected');
+                
+                pendingDuration = { duration, btnClass };
+                showConfirmOverlay(
+                    `Switch from current session to ${duration} minutes?`,
+                    () => {
+                        // User clicked Yes - switch to new time and start immediately
+                        clearInterval(timerInterval);
+                        timerInterval = null;
+                        isOnBreak = false;
+                        
+                        // Update selection highlight
+                        buttons.forEach(b => b.classList.remove("min-btn-selected"));
+                        btn.classList.add("min-btn-selected");
+                        
+                        sessionDuration = duration * 60;
+                        originalSessionDuration = sessionDuration;
+                        updateQuickieDisplay();
+                        hasSelection = false;
+                        
+                        // Immediately start the new session
+                        setTimeout(() => startSession(), 0);
+                    },
+                    () => {
+                        // User clicked No - restore previous highlight
+                        buttons.forEach(b => b.classList.remove("min-btn-selected"));
+                        if (previouslySelected) {
+                            previouslySelected.classList.add("min-btn-selected");
+                        }
+                        hasSelection = true;
+                        pendingDuration = null;
+                    }
+                );
+                return;
+            }
+            
+            // If timer not running, allow selection
+            buttons.forEach(b => b.classList.remove("min-btn-selected"));
+            btn.classList.add("min-btn-selected");
+            
+            hasSelection = true;
+            isQuickieMode = true;
+            
+            sessionDuration = duration * 60;
+            originalSessionDuration = sessionDuration;
+            updateQuickieDisplay();
+        });
     });
-  });
 });
 
 
 document.addEventListener("DOMContentLoaded", function() {
-    document.querySelector('.fifteenMin-btn').addEventListener('click', function() {
-        clearInterval(timerInterval);
-        timerInterval = null;
-        sessionDuration = 15 * 60;
-        originalSessionDuration = sessionDuration;
-        if (isQuickieMode) {
-            updateQuickieDisplay();
-        } else {
-            updateDisplay();
-        }
-    });
-    document.querySelector('.thirtyMin-btn').addEventListener('click', function() {
-        clearInterval(timerInterval);
-        timerInterval = null;
-        sessionDuration = 30 * 60;
-        originalSessionDuration = sessionDuration;
-        if (isQuickieMode) {
-            updateQuickieDisplay();
-        } else {
-            updateDisplay();
-        }
-    });
-    document.querySelector('.fortyfiveMin-btn').addEventListener('click', function() {
-        clearInterval(timerInterval);
-        timerInterval = null;
-        sessionDuration = 45 * 60;
-        originalSessionDuration = sessionDuration;
-        if (isQuickieMode) {
-            updateQuickieDisplay();
-        } else {
-            updateDisplay();
-        }
-    });
-    document.querySelector('.sixtyMin-btn').addEventListener('click', function() {
-        clearInterval(timerInterval);
-        timerInterval = null;
-        sessionDuration = 60 * 60;
-        originalSessionDuration = sessionDuration;
-        if (isQuickieMode) {
-            updateQuickieDisplay();
-        } else {
-            updateDisplay();
-        }
-    });
     document.getElementById('view-details-btn').addEventListener('click', function() {
         popUp_extension(document.querySelector('.quick-sessions-container'));
     });
@@ -273,6 +314,7 @@ function takeBreak() {
 
 function stopSession() {
     clearInterval(timerInterval);
+    hasSelection = false;
     timerInterval = null;
     sessionDuration = 0;
     isQuickieMode = false;
@@ -341,6 +383,7 @@ function updateDisplayBasedOnState() {
 }
 
 function resetToDefault() {
+    hasSelection = false;
     isQuickieMode = false;
     isOnBreak = false;
     sessionDuration = 0;
