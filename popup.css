@@ -519,3 +519,40 @@ html, body {
     gap: 8px;
     padding: 8px;
 }
+
+.fire_icon_extension {
+    height: 20px;
+    width: 20px
+}
+
+.fire_text_extension {
+    align-items: center;
+    font-family:system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+    font-weight: bold;
+    font-size: 13px;
+    color: #213448;
+}
+
+.fire_container_extension {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+}
+
+.next_extension,
+.days_extension {
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+    font-size: 12px;
+    color: rgb(61, 61, 61);
+}
+
+.streak_container_extension {
+    display: flex;
+    background-color: #faf4ec;
+    border-radius: 10px 10px 0 0;
+    border: 1px solid rgb(185, 185, 185);
+    padding: 10px;
+    margin: 10px;
+    justify-content: space-between;
+    align-items: center;
+}

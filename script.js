@@ -25,12 +25,47 @@ function popUp_extension(body_wrapper){
     extension_header_text.textContent = "Strive to be 1% better today than you were yesterday.";
 
     extension_header_container.appendChild(mascot);
-    extension_header_container .appendChild(extension_header_text);
+    extension_header_container.appendChild(extension_header_text);
+
+    let streak_container = document.createElement('div');
+    streak_container.className = 'streak_container_extension';
+
+    let fire_container = document.createElement('div');
+    fire_container.className = 'fire_container_extension';
+
+    let next_container = document.createElement('div');
+    next_container.className = 'next_container_extension';
+
+    let fire_icon = document.createElement('img');
+    fire_icon.className = 'fire_icon_extension';
+    fire_icon.src = 'icons/fire2.png';
+
+    let fire_text = document.createElement('span');
+    fire_text.className = 'fire_text_extension';
+    fire_text.textContent = 'Streak';
+
+    fire_container.appendChild(fire_icon);
+    fire_container.appendChild(fire_text);
+    streak_container.appendChild(fire_container);
+
+    let next = document.createElement('span');
+    next.className = 'next_extension';
+    next.textContent = 'Next:';
+
+    let next_days = document.createElement('span');
+    next_days.className = 'days_extension';
+    next_days.textContent = '10 days'; //should be implemented dynamically
+
+    next_container.appendChild(next);
+    next_container.appendChild(next_days);
+    streak_container.appendChild(next_container);
 
     body_section.appendChild(extension_header_container);
+    body_section.appendChild(streak_container);
 
     body_wrapper.appendChild(body_section);
 }
+
 
 // Save state to chrome storage
 function saveState() {
