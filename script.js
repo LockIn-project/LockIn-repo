@@ -1,3 +1,5 @@
+const { createElement } = require("react");
+
 let sessionDuration = 0;
 let sessionBreak = 0;
 let timerInterval = null;
@@ -7,8 +9,29 @@ let originalSessionDuration = 0;
 let isOnBreak = false;
 let pendingDuration = null;
 
-function popUp_extension(quick_session){
-    quick_session.innerHTML = "";
+function popUp_extension(body_wrapper){
+    body_wrapper.innerHTML = "";
+
+    let body_section = document.createElement('section');
+    body_section.className = "extension-section";
+
+    let extension_header_container = document.createElement('div');
+    extension_header_container.className = "extension_header_container";
+
+    let mascot = document.createElement('img');
+    mascot.src = 'images/mascot3.png';
+    mascot.className = 'mascot_extension';
+
+    let extension_header_text = document.createElement('span');
+    extension_header_text.className = "extension_header_text";
+    extension_header_text.textContent = "Strive to be 1% better today than you were yesterday.";
+
+    extension_header_container.appendChild(mascot);
+    extension_header_container .appendChild(extension_header_text);
+
+    body_section.appendChild(extension_header_container);
+
+    body_wrapper.appendChild(body_section);
 }
 
 // Save state to chrome storage
@@ -164,7 +187,7 @@ function initButtonHandlers() {
     });
     
     document.getElementById('view-details-btn')?.addEventListener('click', function() {
-        popUp_extension(document.querySelector('.quick-sessions-container'));
+        popUp_extension(document.querySelector('.body-wrapper'));
     });
     document.querySelector('.start-btn')?.addEventListener('click', startSession);
 }
