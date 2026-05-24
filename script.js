@@ -1,5 +1,3 @@
-const { createElement } = require("react");
-
 let sessionDuration = 0;
 let sessionBreak = 0;
 let timerInterval = null;
@@ -19,7 +17,7 @@ function popUp_extension(body_wrapper){
     extension_header_container.className = "extension_header_container";
 
     let mascot = document.createElement('img');
-    mascot.src = 'images/mascot3.png';
+    mascot.src = 'icons/mascot3.png';
     mascot.className = 'mascot_extension';
 
     let extension_header_text = document.createElement('span');

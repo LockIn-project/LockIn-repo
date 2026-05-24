@@ -491,3 +491,31 @@ html, body {
 .no-btn:hover {
     background-color: #b31e1e;
 }
+
+.mascot_extension {
+    background-color: #213448;
+    border: 3px solid #94B4C1;
+    border-radius: 50%;
+    height: 25px;
+    width: 25px;
+    padding: 5px;
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+}
+
+.extension_header_text {
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+    font-style: italic;
+    font-size: 12px;
+    padding-top: 10px;
+    color: #EAE0CF;
+}
+
+.extension_header_container {
+    background-color: #547792;
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    padding: 8px;
+}
