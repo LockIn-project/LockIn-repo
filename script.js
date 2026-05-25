@@ -69,22 +69,86 @@ function popUp_extension(body_wrapper){
     let day_icon_wrapper = document.createElement('div');
     day_icon_wrapper.className = "day_icon_wrapper";
 
-    let day_icon_container = document.createElement('div');
-    day_icon_container.className = "day_icon_container";
+    let day_icon_container3 = document.createElement('div');
+    day_icon_container3.className = "day_icon_container";
 
-    let day_icon = document.createElement('img');
-    day_icon.src = 'icons/trophy.png';
-    day_icon.className = "trophy_extension";
+    let day_icon_container7 = document.createElement('div');
+    day_icon_container7.className = "day_icon_container";
+
+    let day_icon3 = document.createElement('img');
+    day_icon3.src = 'icons/trophy.png';
+    day_icon3.className = "trophy_extension";
 
     let day_num3 = document.createElement('span');
     day_num3.className = 'day_num_extension';
     day_num3.textContent = "3d";
 
-    day_icon_container.appendChild(day_icon);
-    day_icon_container.appendChild(day_num3);
+    day_icon_container3.appendChild(day_icon3);
+    day_icon_container3.appendChild(day_num3);
+
+    let day_icon7 = document.createElement('img');
+    day_icon7.src = 'icons/trophy.png';
+    day_icon7.className = "trophy_extension";
+
+    let day_num7 = document.createElement('span');
+    day_num7.className = 'day_num_extension';
+    day_num7.textContent = "7d";
+
+    day_icon_container7.appendChild(day_icon7);
+    day_icon_container7.appendChild(day_num7);
 
 
-    day_icon_wrapper.appendChild(day_icon_container);
+
+    let day_icon_container10 = document.createElement('div');
+    day_icon_container10.className = "day_icon_container";
+
+    let day_icon10 = document.createElement('img');
+    day_icon10.src = 'icons/star.png';
+    day_icon10.className = "star_extension";
+
+    let day_num10 = document.createElement('span');
+    day_num10.className = 'day_num_extension_other';
+    day_num10.textContent = "10d";
+
+    day_icon_container10.appendChild(day_icon10);
+    day_icon_container10.appendChild(day_num10);
+
+    let day_icon_container14 = document.createElement('div');
+    day_icon_container14.className = "day_icon_container";
+
+    let day_icon14 = document.createElement('img');
+    day_icon14.src = 'icons/target.png';
+    day_icon14.className = "target_extension";
+
+    let day_num14 = document.createElement('span');
+    day_num14.className = 'day_num_extension_other';
+    day_num14.textContent = "14d";
+
+    day_icon_container14.appendChild(day_icon14);
+    day_icon_container14.appendChild(day_num14);
+
+    let day_icon_container30 = document.createElement('div');
+    day_icon_container30.className = "day_icon_container";
+
+    let day_icon30 = document.createElement('img');
+    day_icon30.src = 'icons/diamond.png';
+    day_icon30.className = "target_extension";
+
+    let day_num30 = document.createElement('span');
+    day_num30.className = 'day_num_extension_other';
+    day_num30.textContent = "30d";
+
+    day_icon_container30.appendChild(day_icon30);
+    day_icon_container30.appendChild(day_num30);
+
+    let container_wrapper = document.createElement('div');
+    container_wrapper.className = 'extension_container_wrapper';
+
+    day_icon_wrapper.appendChild(day_icon_container3);
+    day_icon_wrapper.appendChild(day_icon_container7);
+    day_icon_wrapper.appendChild(day_icon_container10);
+    day_icon_wrapper.appendChild(day_icon_container14);
+    day_icon_wrapper.appendChild(day_icon_container30);
 
     body_section.appendChild(extension_header_container);
     body_section.appendChild(streak_container);

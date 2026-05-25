@@ -556,3 +556,49 @@ html, body {
     justify-content: space-between;
     align-items: center;
 }
+
+.trophy_extension {
+    height: 21px;
+    width: 21px;
+    background-color: #213448;
+    border: 1px solid rgb(185, 185, 185);
+    border-radius: 8px;
+    padding: 8px;
+}
+
+.star_extension,
+.target_extension {
+    height: 21px;
+    width: 21px;
+    background-color: #ebe6dcda;
+    border: 1px solid rgb(185, 185, 185);
+    border-radius: 8px;
+    padding: 8px;
+}
+
+
+.day_num_extension {
+    font-weight: bold;
+    font-size: 10px;
+}
+
+.day_num_extension_other {
+    font-weight: bold;
+    font-size: 10px;
+    color: rgb(137, 132, 132);
+}
+
+.day_icon_container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 3px;
+    gap: 3px;
+}
+
+.day_icon_wrapper {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 15px;
+}
