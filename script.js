@@ -97,8 +97,6 @@ function popUp_extension(body_wrapper){
     day_icon_container7.appendChild(day_icon7);
     day_icon_container7.appendChild(day_num7);
 
-
-
     let day_icon_container10 = document.createElement('div');
     day_icon_container10.className = "day_icon_container";
 
@@ -141,18 +139,49 @@ function popUp_extension(body_wrapper){
     day_icon_container30.appendChild(day_icon30);
     day_icon_container30.appendChild(day_num30);
 
-    let container_wrapper = document.createElement('div');
-    container_wrapper.className = 'extension_container_wrapper';
-
     day_icon_wrapper.appendChild(day_icon_container3);
     day_icon_wrapper.appendChild(day_icon_container7);
     day_icon_wrapper.appendChild(day_icon_container10);
     day_icon_wrapper.appendChild(day_icon_container14);
     day_icon_wrapper.appendChild(day_icon_container30);
 
+    let container_wrapper = document.createElement('div');
+    container_wrapper.className = 'extension_container_wrapper';
+
+    let bar_text_wrapper = document.createElement('div');
+    bar_text_wrapper.className = 'bar_text_wrapper';
+
+    let streak_bar_container = document.createElement('div');
+    streak_bar_container.className = 'streak_bar_container';
+
+    let streak_bar = document.createElement('div');
+    streak_bar.className = 'streak_bar';
+
+    streak_bar_container.appendChild(streak_bar);
+
+    let to_num_container = document.createElement('div');
+    to_num_container.className = 'to_num_container';
+
+    let num_days = document.createElement('span');
+    num_days.className = 'extension_num_days';
+    num_days.textContent = '2';
+
+    let to_go = document.createElement('span');
+    to_go.className = 'extension_to_go';
+    to_go.textContent = 'days to go';
+
+    to_num_container.appendChild(num_days);
+    to_num_container.appendChild(to_go);
+
+    bar_text_wrapper.appendChild(streak_bar_container);
+    bar_text_wrapper.appendChild(to_num_container);
+
+    container_wrapper.appendChild(day_icon_wrapper);
+    container_wrapper.appendChild(bar_text_wrapper);
+
     body_section.appendChild(extension_header_container);
     body_section.appendChild(streak_container);
-    body_section.appendChild(day_icon_wrapper);
+    body_section.appendChild(container_wrapper);
 
     body_wrapper.appendChild(body_section);
 }
