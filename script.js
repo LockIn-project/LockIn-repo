@@ -279,7 +279,7 @@ function popUp_extension(body_wrapper){
 
     let x_text = document.createElement('span');
     x_text.className = 'focus_icon_text';
-    x_text.textContent = 'Instagram';
+    x_text.textContent = 'X/Twitter';
 
     x_container.appendChild(x_icon);
     x_container.appendChild(x_text);
@@ -368,11 +368,98 @@ function popUp_extension(body_wrapper){
     focus_body.appendChild(breakline4);
     focus_body.appendChild(yt_wrapper);
 
+    let sched_wrapper = document.createElement('div');
+    sched_wrapper.className = 'sched_wrapper';
+
+    let sched_container = document.createElement('div');
+    sched_container.className = 'sched_container';
+
+    let sched_header_container = document.createElement('div');
+    sched_header_container.className = 'sched_header_container';
+
+    let sched_icon = document.createElement('img');
+    sched_icon.className = 'sched_icon_text';
+    sched_icon.src = 'icons/';
+
+    let sched_text = document.createElement('span');
+    sched_text.className = 'sched_text';
+    sched_text.textContent = 'Plan sessions';
+
+    sched_header_container.appendChild(sched_icon);
+    sched_header_container.appendChild(sched_text);
+
+    let plan_container = document.createElement('div');
+    plan_container.className = 'plan_container';
+
+    let day_planned_sched = document.createElement('span');
+    day_planned_sched.className = 'day_planned_sched';
+    day_planned_sched.textContent = '0'; //should be dynamic
+
+    let planned_sched = document.createElement('span');
+    planned_sched.className = 'day_planned_sched';
+    planned_sched.textContent = 'scheduled';
+
+    plan_container.appendChild(day_planned_sched);
+    plan_container.appendChild(planned_sched);
+
+    sched_container.appendChild(sched_header_container);
+    sched_container.appendChild(plan_container);
+
+    let sched_sessions = document.createElement('div');
+    sched_sessions.className = 'sched_sessions_container'; //append the new created session here   
+
+    let each_session = document.createElement('div');
+    each_session.className = 'each_session_container'; //each created session will use this container
+
+    sched_sessions.appendChild(each_session); //here too
+
+    let sched_btns_container = document.createElement('div');
+    sched_btns_container.className = 'sched_btns_container';
+
+    let sched_btn = document.createElement('button');
+    sched_btn.className = 'sched_btn';
+    sched_btn.textContent = '+ Schedule Session';
+
+    sched_btns_container.appendChild(sched_btn);
+
+    let suggestion_wrapper = document.createElement('div');
+    suggestion_wrapper.className = 'suggestion_wrapper';
+
+    let suggestion_container = document.createElement('div');
+    suggestion_container.className = 'suggestion_container';
+
+    let ai_icon_text = document.createElement('div');
+    ai_icon_text.className = 'ai_icon_text_container';
+
+    let ai_icon = document.createElement('img');
+    ai_icon.src = 'icons/ai.png';
+    ai_icon.className = 'ai_icon';
+
+    let ai_text = document.createElement('span');
+    ai_text.className = 'ai_icon';
+    ai_text.textContent = 'AI suggestions';
+
+    ai_icon_text.appendChild(ai_icon);
+    ai_icon_text.appendChild(ai_text);
+
+    let past_sesh = document.createElement('span');
+    past_sesh.className = 'past_sesh';
+    past_sesh.textContent = 'from past sessions';
+
+    suggestion_container.appendChild(ai_icon_text);
+    suggestion_container.appendChild(past_sesh);
+
+    
+
+
     body_section.appendChild(extension_header_container);
     body_section.appendChild(streak_container);
     body_section.appendChild(container_wrapper);
     body_section.appendChild(focus_header_container);
     body_section.appendChild(focus_body);
+    body_section.appendChild(sched_container);
+    body_section.appendChild(sched_btns_container);
+    body_section.appendChild(suggestion_container);
 
     body_wrapper.appendChild(body_section);
 }
