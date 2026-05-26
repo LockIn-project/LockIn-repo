@@ -513,6 +513,25 @@ function popUp_extension(body_wrapper){
 
     lower_detection_container.appendChild(inner_detection_container);
 
+    let footer_container = document.createElement('div');
+    footer_container.className = 'footer_container';
+
+    let new_sesh_btn = document.createElement('button');
+    new_sesh_btn.className = 'new_sesh_btn';
+
+    let sesh_icon = document.createElement('img');
+    sesh_icon.src = 'icons/play2.png';
+    sesh_icon.className = 'sesh_icon';
+
+    let sesh_text = document.createElement('span');
+    sesh_text.className = 'sesh_text';
+    sesh_text.textContent = 'Start new session';
+
+    new_sesh_btn.appendChild(sesh_icon);
+    new_sesh_btn.appendChild(sesh_text);
+
+    footer_container.appendChild(new_sesh_btn);
+
     body_section.appendChild(extension_header_container);
     body_section.appendChild(streak_container);
     body_section.appendChild(container_wrapper);
@@ -524,6 +543,7 @@ function popUp_extension(body_wrapper){
     body_section.appendChild(lower_suggestion_container);
     body_section.appendChild(detection_container);
     body_section.appendChild(lower_detection_container);
+    body_section.appendChild(footer_container);
 
     body_wrapper.appendChild(body_section);
 }
