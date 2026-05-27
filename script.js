@@ -10,6 +10,26 @@ let pendingDuration = null;
 function popUp_extension(body_wrapper){
     body_wrapper.innerHTML = "";
 
+    let headerTextStreak = document.querySelector('.header-right');
+
+    let compact_container = document.createElement('div');
+    compact_container.className = 'compact-container';
+
+    headerTextStreak.appendChild(compact_container);
+    
+    let compact_btn = document.createElement('button');
+    compact_btn.className = 'compact-btn';
+
+    let compact_icon = document.createElement('img');
+    compact_icon.className = "compact_icon";
+    compact_icon.src = 'icons/up.png';
+
+    compact_btn.appendChild(compact_icon);
+
+    let rightContainer = headerTextStreak.querySelector('.compact-container');
+
+    rightContainer.appendChild(compact_btn);
+
     let body_section = document.createElement('section');
     body_section.className = "extension-section";
 
@@ -379,7 +399,7 @@ function popUp_extension(body_wrapper){
 
     let sched_icon = document.createElement('img');
     sched_icon.className = 'sched_icon_text';
-    sched_icon.src = 'icons/';
+    sched_icon.src = 'icons/calendar.png';
 
     let sched_text = document.createElement('span');
     sched_text.className = 'sched_text';
@@ -476,7 +496,7 @@ function popUp_extension(body_wrapper){
 
     let detection_icon = document.createElement('img');
     detection_icon.className = 'detection_icon';
-    detection_icon.src = 'icons/detection.png';
+    detection_icon.src = 'icons/idle.png';
 
     let detection_text = document.createElement('span');
     detection_text.className = 'detection_text';
