@@ -568,8 +568,6 @@ function popUp_extension(body_wrapper){
     body_wrapper.appendChild(body_section);
 }
 
-
-// Save state to chrome storage
 function saveState() {
     chrome.storage.local.set({
         sessionDuration: sessionDuration,
