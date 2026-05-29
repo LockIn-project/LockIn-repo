@@ -1,47 +1,150 @@
+// ─── LockIn background.js ───────────────────────────────────────────────────
+// Single onMessage listener handles all message types.
+// Uses chrome.declarativeNetRequest for site blocking (MV3 compliant).
+
 chrome.runtime.onInstalled.addListener(() => {
-  console.log("LockIn extension installed and background service worker running.");
+  console.log("LockIn installed.");
+  // Seed storage defaults if first run
+  chrome.storage.local.get(["lockInMainState"], (result) => {
+    if (!result.lockInMainState) {
+      chrome.storage.local.set({
+        lockInMainState: {},
+        lockInIsCompact: false,
+        lockInStreak: { streakDays: 0, lastSessionDate: null },
+        lockInFocusToggles: { facebook: false, instagram: false, twitter: false, tiktok: false, youtube: false },
+        lockInScheduled: [],
+        lockInTimerActive: false
+      });
+    }
+  });
 });
 
-// Message listener for communication with popup.js
+// ── Declarative Net Request rules for site blocking ──────────────────────────
+const BLOCK_RULES = {
+  facebook:  { id: 1, priority: 1, action: { type: "block" }, condition: { urlFilter: "*facebook.com*",  resourceTypes: ["main_frame"] } },
+  instagram: { id: 2, priority: 1, action: { type: "block" }, condition: { urlFilter: "*instagram.com*", resourceTypes: ["main_frame"] } },
+  twitter:   { id: 3, priority: 1, action: { type: "block" }, condition: { urlFilter: "*twitter.com*",   resourceTypes: ["main_frame"] } },
+  tiktok:    { id: 4, priority: 1, action: { type: "block" }, condition: { urlFilter: "*tiktok.com*",    resourceTypes: ["main_frame"] } },
+  youtube:   { id: 5, priority: 1, action: { type: "block" }, condition: { urlFilter: "*youtube.com*",   resourceTypes: ["main_frame"] } }
+};
+
+function applyFocusToggles(toggles) {
+  const addRules = [];
+  const removeIds = [];
+  for (const [site, rule] of Object.entries(BLOCK_RULES)) {
+    if (toggles[site]) {
+      addRules.push(rule);
+    } else {
+      removeIds.push(rule.id);
+    }
+  }
+  chrome.declarativeNetRequest.updateDynamicRules({ removeRuleIds: removeIds, addRules });
+}
+
+// ── Main message listener ─────────────────────────────────────────────────────
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  // Handle saveState request from popup
+
+  // ── saveState ──────────────────────────────────────────────────────────────
   if (message.type === "saveState") {
     chrome.storage.local.set({ lockInMainState: message.state }, () => {
       sendResponse({ success: true });
     });
-    return true; // Will respond asynchronously
+    return true;
   }
 
-  // Handle loadState request from popup
+  // ── loadState ──────────────────────────────────────────────────────────────
   if (message.type === "loadState") {
-    chrome.storage.local.get(["lockInMainState"], (result) => {
-      const state = result.lockInMainState || {};
-      sendResponse({ state });
+    chrome.storage.local.get([
+      "lockInMainState", "lockInStreak", "lockInFocusToggles",
+      "lockInScheduled", "lockInIsCompact"
+    ], (result) => {
+      sendResponse({
+        state:        result.lockInMainState      || {},
+        streak:       result.lockInStreak         || { streakDays: 0, lastSessionDate: null },
+        focusToggles: result.lockInFocusToggles   || { facebook: false, instagram: false, twitter: false, tiktok: false, youtube: false },
+        scheduled:    result.lockInScheduled      || [],
+        isCompact:    result.lockInIsCompact      || false
+      });
     });
-    return true; // Will respond asynchronously
+    return true;
   }
 
-  // Handle toggleCompact request from popup
+  // ── saveStreak ─────────────────────────────────────────────────────────────
+  if (message.type === "saveStreak") {
+    chrome.storage.local.set({ lockInStreak: message.streak }, () => {
+      sendResponse({ success: true });
+    });
+    return true;
+  }
+
+  // ── saveFocusToggles ───────────────────────────────────────────────────────
+  if (message.type === "saveFocusToggles") {
+    chrome.storage.local.set({ lockInFocusToggles: message.toggles }, () => {
+      applyFocusToggles(message.toggles);
+      sendResponse({ success: true });
+    });
+    return true;
+  }
+
+  // ── saveScheduled ──────────────────────────────────────────────────────────
+  if (message.type === "saveScheduled") {
+    chrome.storage.local.set({ lockInScheduled: message.scheduled }, () => {
+      // Reschedule all alarms
+      chrome.alarms.clearAll(() => {
+        message.scheduled.forEach((sess, idx) => {
+          const fireTime = new Date(sess.datetime).getTime();
+          const now = Date.now();
+          if (fireTime > now) {
+            const delayMs = fireTime - now;
+            chrome.alarms.create(`lockInSession_${idx}`, { delayInMinutes: delayMs / 60000 });
+          }
+        });
+      });
+      sendResponse({ success: true });
+    });
+    return true;
+  }
+
+  // ── toggleCompact ──────────────────────────────────────────────────────────
   if (message.type === "toggleCompact") {
     chrome.storage.local.get(["lockInIsCompact"], (result) => {
-      let isCompact = result.lockInIsCompact || false;
-      isCompact = !isCompact;
+      const isCompact = !(result.lockInIsCompact || false);
       chrome.storage.local.set({ lockInIsCompact: isCompact }, () => {
         sendResponse({ isCompact });
       });
     });
-    return true; // Will respond asynchronously
+    return true;
   }
 
-  // Optional: Handle timer alarms if popup is closed
+  // ── sessionComplete (streak logic lives here so it persists) ──────────────
+  if (message.type === "sessionComplete") {
+    chrome.storage.local.get(["lockInStreak"], (result) => {
+      let streak = result.lockInStreak || { streakDays: 0, lastSessionDate: null };
+      const today = new Date().toDateString();
+      if (streak.lastSessionDate !== today) {
+        streak.streakDays += 1;
+        streak.lastSessionDate = today;
+      }
+      chrome.storage.local.set({ lockInStreak: streak }, () => {
+        // Show notification
+        chrome.notifications.create({
+          type: "basic",
+          iconUrl: "icons/icon48.png",
+          title: "LockIn – Session Complete!",
+          message: `Great work! You're on a ${streak.streakDays}-day streak 🔥`
+        });
+        sendResponse({ streak });
+      });
+    });
+    return true;
+  }
+
+  // ── startTimer / stopTimer (background alarm fallback) ────────────────────
   if (message.type === "startTimer") {
-    // Start a timer based on current state
     chrome.storage.local.get(["lockInMainState"], (result) => {
       const state = result.lockInMainState || {};
-      const durationInMinutes = state.isOnBreak ? state.sessionBreak : state.sessionDuration;
-      // Create a repeating alarm for the timer
-      chrome.alarms.create("lockInTimer", { delayInMinutes: durationInMinutes, periodInMinutes: durationInMinutes });
-      // Mark timer as active
+      const durationInMinutes = state.isOnBreak ? state.sessionBreak / 60 : state.sessionDuration / 60;
+      chrome.alarms.create("lockInTimer", { delayInMinutes: durationInMinutes });
       chrome.storage.local.set({ lockInTimerActive: true });
       sendResponse({ success: true });
     });
@@ -49,9 +152,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 
   if (message.type === "stopTimer") {
-    // Clear the timer alarm
     chrome.alarms.clear("lockInTimer", () => {
-      // Mark timer as inactive
       chrome.storage.local.set({ lockInTimerActive: false }, () => {
         sendResponse({ success: true });
       });
@@ -59,42 +160,68 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
-  // Handle alarm events for timer completion
-  if (message.type === "checkAlarm") {
-    // This is handled by the alarm listener below
-    sendResponse({});
+  // ── scheduledSessionNotification ──────────────────────────────────────────
+  if (message.type === "testNotification") {
+    chrome.notifications.create({
+      type: "basic",
+      iconUrl: "icons/icon48.png",
+      title: "LockIn – Scheduled Session",
+      message: message.text || "Your scheduled session is starting now!"
+    });
+    sendResponse({ success: true });
     return true;
   }
 
-  // Default response for unhandled messages
   sendResponse({});
   return false;
 });
 
-// Optional: Handle timer alarms to persist state when popup is closed
+// ── Alarm listener ────────────────────────────────────────────────────────────
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === "lockInTimer") {
-    // Toggle between session and break when timer completes
     chrome.storage.local.get(["lockInMainState"], (result) => {
       let state = result.lockInMainState || {};
       state.isOnBreak = !state.isOnBreak;
-      // Save updated main state
-      chrome.storage.local.set({ lockInMainState: state }, () => {
-        // Optionally restart timer for the new period
-        const durationInMinutes = state.isOnBreak ? state.sessionBreak : state.sessionDuration;
-        chrome.alarms.create("lockInTimer", { delayInMinutes: durationInMinutes, periodInMinutes: durationInMinutes });
-      });
+      chrome.storage.local.set({ lockInMainState: state });
+    });
+  }
+
+  if (alarm.name.startsWith("lockInSession_")) {
+    const idx = parseInt(alarm.name.split("_")[1]);
+    chrome.storage.local.get(["lockInScheduled"], (result) => {
+      const scheduled = result.lockInScheduled || [];
+      if (scheduled[idx]) {
+        chrome.notifications.create({
+          type: "basic",
+          iconUrl: "icons/icon48.png",
+          title: "LockIn – Time to Focus!",
+          message: `Your scheduled ${scheduled[idx].duration}-minute session is starting now.`
+        });
+      }
     });
   }
 });
 
-// Optional: Restore timer alarm on extension startup if needed
+// ── Restore alarms on startup ─────────────────────────────────────────────────
 chrome.runtime.onStartup.addListener(() => {
-  chrome.storage.local.get(["lockInTimerActive", "lockInMainState"], (result) => {
-    if (result.lockInTimerActive) {
-      const state = result.lockInMainState || {};
-      const durationInMinutes = state.isOnBreak ? state.sessionBreak : state.sessionDuration;
-      chrome.alarms.create("lockInTimer", { delayInMinutes: durationInMinutes, periodInMinutes: durationInMinutes });
+  chrome.storage.local.get([
+    "lockInTimerActive", "lockInMainState",
+    "lockInFocusToggles", "lockInScheduled"
+  ], (result) => {
+    // Restore focus blocks
+    if (result.lockInFocusToggles) {
+      applyFocusToggles(result.lockInFocusToggles);
+    }
+    // Restore scheduled alarms
+    if (result.lockInScheduled) {
+      result.lockInScheduled.forEach((sess, idx) => {
+        const fireTime = new Date(sess.datetime).getTime();
+        if (fireTime > Date.now()) {
+          chrome.alarms.create(`lockInSession_${idx}`, {
+            delayInMinutes: (fireTime - Date.now()) / 60000
+          });
+        }
+      });
     }
   });
 });

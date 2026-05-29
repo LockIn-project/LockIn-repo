@@ -1,1048 +1,1099 @@
-let sessionDuration = 0;
-let sessionBreak = 0;
-let timerInterval = null;
-let isQuickieMode = false;
-let hasSelection = false;
+// ─── LockIn script.js ───────────────────────────────────────────────────────
+
+// ── State variables ──────────────────────────────────────────────────────────
+let sessionDuration        = 0;
+let sessionBreak           = 0;
+let timerInterval          = null;
+let isQuickieMode          = false;
+let hasSelection           = false;
 let originalSessionDuration = 0;
-let isOnBreak = false;
-let pendingDuration = null;
+let isOnBreak              = false;
+let pendingDuration        = null;
+let isCompact              = false;
 
-function popUp_extension(body_wrapper){
-    body_wrapper.innerHTML = "";
+// Streak
+let streakDays             = 0;
+let lastSessionDate        = null;
 
-    let headerTextStreak = document.querySelector('.header-right');
+// Focus toggles
+let focusToggles = { facebook: false, instagram: false, twitter: false, tiktok: false, youtube: false };
 
-    let compact_container = document.createElement('div');
-    compact_container.className = 'compact-container';
+// Scheduled sessions  [{ datetime, duration, label }]
+let scheduledSessions = [];
 
-    headerTextStreak.appendChild(compact_container);
-    
-    let compact_btn = document.createElement('button');
-    compact_btn.className = 'compact-btn';
+// Idle detection
+let lastActivityTime       = Date.now();
+let idleInterval           = null;
+let scheduledGoalDuration  = 0; // minutes, from next upcoming session
 
-    let compact_icon = document.createElement('img');
-    compact_icon.className = "compact_icon";
-    compact_icon.src = 'icons/up.png';
+// ── Milestones ───────────────────────────────────────────────────────────────
+const MILESTONES = [3, 7, 10, 14, 30];
 
-    compact_btn.appendChild(compact_icon);
-
-    let rightContainer = headerTextStreak.querySelector('.compact-container');
-
-    rightContainer.appendChild(compact_btn);
-
-    let body_section = document.createElement('section');
-    body_section.className = "extension-section";
-
-    let extension_header_container = document.createElement('div');
-    extension_header_container.className = "extension_header_container";
-
-    let mascot = document.createElement('img');
-    mascot.src = 'icons/mascot3.png';
-    mascot.className = 'mascot_extension';
-
-    let extension_header_text = document.createElement('span');
-    extension_header_text.className = "extension_header_text";
-    extension_header_text.textContent = "Strive to be 1% better today than you were yesterday.";
-
-    extension_header_container.appendChild(mascot);
-    extension_header_container.appendChild(extension_header_text);
-
-    let streak_wrapper = document.createElement('div');
-    streak_wrapper.className = 'streak_wrapper_extension';
-
-    let streak_container = document.createElement('div');
-    streak_container.className = 'streak_container_extension';
-
-    let fire_container = document.createElement('div');
-    fire_container.className = 'fire_container_extension';
-
-    let next_container = document.createElement('div');
-    next_container.className = 'next_container_extension';
-
-    let fire_icon = document.createElement('img');
-    fire_icon.className = 'fire_icon_extension';
-    fire_icon.src = 'icons/fire2.png';
-
-    let fire_text = document.createElement('span');
-    fire_text.className = 'fire_text_extension';
-    fire_text.textContent = 'Streak';
-
-    fire_container.appendChild(fire_icon);
-    fire_container.appendChild(fire_text);
-    streak_container.appendChild(fire_container);
-
-    let next = document.createElement('span');
-    next.className = 'next_extension';
-    next.textContent = 'Next:';
-
-    let next_days = document.createElement('span');
-    next_days.className = 'days_extension';
-    next_days.textContent = '10 days'; //should be implemented dynamically
-
-    next_container.appendChild(next);
-    next_container.appendChild(next_days);
-    streak_container.appendChild(next_container);
-
-    let bottom_streak_container = document.createElement('div');
-    bottom_streak_container.className = "bottom_streak_container";
-
-    let day_icon_wrapper = document.createElement('div');
-    day_icon_wrapper.className = "day_icon_wrapper";
-
-    let day_icon_container3 = document.createElement('div');
-    day_icon_container3.className = "day_icon_container";
-
-    let day_icon_container7 = document.createElement('div');
-    day_icon_container7.className = "day_icon_container";
-
-    let day_icon3 = document.createElement('img');
-    day_icon3.src = 'icons/trophy.png';
-    day_icon3.className = "trophy_extension";
-
-    let day_num3 = document.createElement('span');
-    day_num3.className = 'day_num_extension';
-    day_num3.textContent = "3d";
-
-    day_icon_container3.appendChild(day_icon3);
-    day_icon_container3.appendChild(day_num3);
-
-    let day_icon7 = document.createElement('img');
-    day_icon7.src = 'icons/trophy.png';
-    day_icon7.className = "trophy_extension";
-
-    let day_num7 = document.createElement('span');
-    day_num7.className = 'day_num_extension';
-    day_num7.textContent = "7d";
-
-    day_icon_container7.appendChild(day_icon7);
-    day_icon_container7.appendChild(day_num7);
-
-    let day_icon_container10 = document.createElement('div');
-    day_icon_container10.className = "day_icon_container";
-
-    let day_icon10 = document.createElement('img');
-    day_icon10.src = 'icons/star.png';
-    day_icon10.className = "star_extension";
-
-    let day_num10 = document.createElement('span');
-    day_num10.className = 'day_num_extension_other';
-    day_num10.textContent = "10d";
-
-    day_icon_container10.appendChild(day_icon10);
-    day_icon_container10.appendChild(day_num10);
-
-    let day_icon_container14 = document.createElement('div');
-    day_icon_container14.className = "day_icon_container";
-
-    let day_icon14 = document.createElement('img');
-    day_icon14.src = 'icons/target.png';
-    day_icon14.className = "target_extension";
-
-    let day_num14 = document.createElement('span');
-    day_num14.className = 'day_num_extension_other';
-    day_num14.textContent = "14d";
-
-    day_icon_container14.appendChild(day_icon14);
-    day_icon_container14.appendChild(day_num14);
-
-    let day_icon_container30 = document.createElement('div');
-    day_icon_container30.className = "day_icon_container";
-
-    let day_icon30 = document.createElement('img');
-    day_icon30.src = 'icons/diamond.png';
-    day_icon30.className = "target_extension";
-
-    let day_num30 = document.createElement('span');
-    day_num30.className = 'day_num_extension_other';
-    day_num30.textContent = "30d";
-
-    day_icon_container30.appendChild(day_icon30);
-    day_icon_container30.appendChild(day_num30);
-
-    day_icon_wrapper.appendChild(day_icon_container3);
-    day_icon_wrapper.appendChild(day_icon_container7);
-    day_icon_wrapper.appendChild(day_icon_container10);
-    day_icon_wrapper.appendChild(day_icon_container14);
-    day_icon_wrapper.appendChild(day_icon_container30);
-
-    let container_wrapper = document.createElement('div');
-    container_wrapper.className = 'extension_container_wrapper';
-
-    let bar_text_wrapper = document.createElement('div');
-    bar_text_wrapper.className = 'bar_text_wrapper';
-
-    let streak_bar_container = document.createElement('div');
-    streak_bar_container.className = 'streak_bar_container';
-
-    let streak_bar = document.createElement('div');
-    streak_bar.className = 'streak_bar';
-
-    streak_bar_container.appendChild(streak_bar);
-
-    let to_num_container = document.createElement('div');
-    to_num_container.className = 'to_num_container';
-
-    let num_days = document.createElement('span');
-    num_days.className = 'extension_num_days';
-    num_days.textContent = '2';
-
-    let to_go = document.createElement('span');
-    to_go.className = 'extension_to_go';
-    to_go.textContent = 'days to go';
-
-    to_num_container.appendChild(num_days);
-    to_num_container.appendChild(to_go);
-
-    bar_text_wrapper.appendChild(streak_bar_container);
-    bar_text_wrapper.appendChild(to_num_container);
-
-    container_wrapper.appendChild(day_icon_wrapper);
-    container_wrapper.appendChild(bar_text_wrapper);
-
-    let focus_mode_wrapper = document.createElement('div');
-    focus_mode_wrapper.className = "focus_mode_wrapper";
-
-    let focus_header_container = document.createElement('div');
-    focus_header_container.className = 'focus_header_container';
-
-    let icon_text = document.createElement('div');
-    icon_text.className = 'icon_text_focus';
-
-    let focus_icon = document.createElement('img');
-    focus_icon.className = 'focus_icon';
-    focus_icon.src = 'icons/focus.png';
-
-    let focus_text = document.createElement('span');
-    focus_text.className = 'focus_text';
-    focus_text.textContent = 'Focus Mode';
-
-    icon_text.appendChild(focus_icon);
-    icon_text.appendChild(focus_text);
-
-    let focus_status = document.createElement('span');
-    focus_status.className = 'focus_status';
-    focus_status.textContent = 'Active'; //should be applied dynamically active/inactive
-
-    focus_header_container.appendChild(icon_text);
-    focus_header_container.appendChild(focus_status);
-
-    let focus_body = document.createElement('div');
-    focus_body.className = 'focus_body';
-
-    let fb_wrapper = document.createElement('div');
-    fb_wrapper.className = 'focuses_wrapper';
-
-    let fb_container = document.createElement('div');
-    fb_container.className = 'focuses_container';
-
-    let fb_icon = document.createElement('img');
-    fb_icon.className = 'focus_icon';
-    fb_icon.src = 'icons/fb.png';
-
-    let fb_text = document.createElement('span');
-    fb_text.className = 'focus_icon_text';
-    fb_text.textContent = 'Facebook';
-
-    fb_container.appendChild(fb_icon);
-    fb_container.appendChild(fb_text);
-
-    let toggle1 = document.createElement('div');
-    toggle1.className = 'toggle';
-
-    let knob1 = document.createElement('div');
-    knob1.className = 'knob';
-
-    toggle1.appendChild(knob1);
-
-    fb_wrapper.appendChild(fb_container);
-    fb_wrapper.appendChild(toggle1);
-
-    let ig_wrapper = document.createElement('div');
-    ig_wrapper.className = 'focuses_wrapper';
-
-    let ig_container = document.createElement('div');
-    ig_container.className = 'focuses_container';
-
-    let ig_icon = document.createElement('img');
-    ig_icon.className = 'focus_icon';
-    ig_icon.src = 'icons/ig.png';
-
-    let ig_text = document.createElement('span');
-    ig_text.className = 'focus_icon_text';
-    ig_text.textContent = 'Instagram';
-
-    ig_container.appendChild(ig_icon);
-    ig_container.appendChild(ig_text);
-
-    let toggle2 = document.createElement('div');
-    toggle2.className = 'toggle';
-
-    let knob2 = document.createElement('div');
-    knob2.className = 'knob';
-
-    toggle2.appendChild(knob2);
-
-    ig_wrapper.appendChild(ig_container);
-    ig_wrapper.appendChild(toggle2);
-
-    let breakline1 = document.createElement('hr');
-
-    let x_wrapper = document.createElement('div');
-    x_wrapper.className = 'focuses_wrapper';
-
-    let x_container = document.createElement('div');
-    x_container.className = 'focuses_container';
-
-    let x_icon = document.createElement('img');
-    x_icon.className = 'focus_icon';
-    x_icon.src = 'icons/x.png';
-
-    let x_text = document.createElement('span');
-    x_text.className = 'focus_icon_text';
-    x_text.textContent = 'X/Twitter';
-
-    x_container.appendChild(x_icon);
-    x_container.appendChild(x_text);
-
-    let toggle3 = document.createElement('div');
-    toggle3.className = 'toggle';
-
-    let knob3 = document.createElement('div');
-    knob3.className = 'knob';
-
-    toggle3.appendChild(knob3);
-
-    x_wrapper.appendChild(x_container);
-    x_wrapper.appendChild(toggle3);
-
-
-    let breakline2 = document.createElement('hr');
-
-    let tiktok_wrapper = document.createElement('div');
-    tiktok_wrapper.className = 'focuses_wrapper';
-
-    let tiktok_container = document.createElement('div');
-    tiktok_container.className = 'focuses_container';
-
-    let tiktok_icon = document.createElement('img');
-    tiktok_icon.className = 'focus_icon';
-    tiktok_icon.src = 'icons/tiktok.png';
-
-    let tiktok_text = document.createElement('span');
-    tiktok_text.className = 'focus_icon_text';
-    tiktok_text.textContent = 'Tiktok';
-
-    tiktok_container.appendChild(tiktok_icon);
-    tiktok_container.appendChild(tiktok_text);
-
-    let toggle4 = document.createElement('div');
-    toggle4.className = 'toggle';
-
-    let knob4 = document.createElement('div');
-    knob4.className = 'knob';
-
-    toggle4.appendChild(knob4);
-
-    tiktok_wrapper.appendChild(tiktok_container);
-    tiktok_wrapper.appendChild(toggle4);
-
-    let breakline3 = document.createElement('hr');
-
-    let yt_wrapper = document.createElement('div');
-    yt_wrapper.className = 'focuses_wrapper';
-
-    let yt_container = document.createElement('div');
-    yt_container.className = 'focuses_container';
-
-    let yt_icon = document.createElement('img');
-    yt_icon.className = 'focus_icon';
-    yt_icon.src = 'icons/yt.png';
-
-    let yt_text = document.createElement('span');
-    yt_text.className = 'focus_icon_text';
-    yt_text.textContent = 'Youtube';
-
-    yt_container.appendChild(yt_icon);
-    yt_container.appendChild(yt_text);
-
-    let toggle5 = document.createElement('div');
-    toggle5.className = 'toggle';
-
-    let knob5 = document.createElement('div');
-    knob5.className = 'knob';
-
-    toggle5.appendChild(knob5);
-
-    yt_wrapper.appendChild(yt_container);
-    yt_wrapper.appendChild(toggle5);
-
-    let breakline4 = document.createElement('hr');
-
-    focus_body.appendChild(fb_wrapper);
-    focus_body.appendChild(breakline1);
-    focus_body.appendChild(ig_wrapper);
-    focus_body.appendChild(breakline2);
-    focus_body.appendChild(x_wrapper);
-    focus_body.appendChild(breakline3);
-    focus_body.appendChild(tiktok_wrapper);
-    focus_body.appendChild(breakline4);
-    focus_body.appendChild(yt_wrapper);
-
-    let sched_wrapper = document.createElement('div');
-    sched_wrapper.className = 'sched_wrapper';
-
-    let sched_container = document.createElement('div');
-    sched_container.className = 'sched_container';
-
-    let sched_header_container = document.createElement('div');
-    sched_header_container.className = 'sched_header_container';
-
-    let sched_icon = document.createElement('img');
-    sched_icon.className = 'sched_icon_text';
-    sched_icon.src = 'icons/calendar.png';
-
-    let sched_text = document.createElement('span');
-    sched_text.className = 'sched_text';
-    sched_text.textContent = 'Plan sessions';
-
-    sched_header_container.appendChild(sched_icon);
-    sched_header_container.appendChild(sched_text);
-
-    let plan_container = document.createElement('div');
-    plan_container.className = 'plan_container';
-
-    let day_planned_sched = document.createElement('span');
-    day_planned_sched.className = 'day_planned_sched';
-    day_planned_sched.textContent = '0'; //should be dynamic
-
-    let planned_sched = document.createElement('span');
-    planned_sched.className = 'day_planned_sched';
-    planned_sched.textContent = 'scheduled';
-
-    plan_container.appendChild(day_planned_sched);
-    plan_container.appendChild(planned_sched);
-
-    sched_container.appendChild(sched_header_container);
-    sched_container.appendChild(plan_container);
-
-    let sched_sessions = document.createElement('div');
-    sched_sessions.className = 'sched_sessions_container'; //append the new created session here   
-
-    let each_session = document.createElement('div');
-    each_session.className = 'each_session_container'; //each created session will use this container
-
-    sched_sessions.appendChild(each_session); //here too
-
-    let sched_btns_container = document.createElement('div');
-    sched_btns_container.className = 'sched_btns_container';
-
-    let sched_btn = document.createElement('button');
-    sched_btn.className = 'sched_btn';
-    sched_btn.textContent = '+ Schedule Session';
-
-    sched_btns_container.appendChild(sched_btn);
-
-    let suggestion_wrapper = document.createElement('div');
-    suggestion_wrapper.className = 'suggestion_wrapper';
-
-    let suggestion_container = document.createElement('div');
-    suggestion_container.className = 'suggestion_container';
-
-    let ai_icon_text = document.createElement('div');
-    ai_icon_text.className = 'ai_icon_text_container';
-
-    let ai_icon = document.createElement('img');
-    ai_icon.src = 'icons/ai.png';
-    ai_icon.className = 'ai_icon';
-
-    let ai_text = document.createElement('span');
-    ai_text.className = 'ai_text';
-    ai_text.textContent = 'AI suggestions';
-
-    ai_icon_text.appendChild(ai_icon);
-    ai_icon_text.appendChild(ai_text);
-
-    let past_sesh = document.createElement('span');
-    past_sesh.className = 'past_sesh';
-    past_sesh.textContent = 'from past sessions';
-
-    suggestion_container.appendChild(ai_icon_text);
-    suggestion_container.appendChild(past_sesh);
-
-    let lower_suggestion_container = document.createElement('div');
-    lower_suggestion_container.className = 'lower_suggestion_container';
-
-    let dummy = document.createElement('span');
-    dummy.className = 'dummy';
-
-    //each suggestion by ai will be sent in this div
-    let each_suggestion = document.createElement('div');
-    each_suggestion.className = 'each_suggestion';
-
-    //btn for proceeding
-    let proceed = document.createElement('button');
-    proceed.className = 'proceed';
-    proceed.src = 'icons/play2.png';
-
-    lower_suggestion_container.appendChild(dummy);
-
-    lower_suggestion_container.appendChild(each_suggestion);
-    
-    let detection_wrapper = document.createElement('div');
-    detection_wrapper.className = 'detection_wrapper';
-
-    let detection_container = document.createElement('div');
-    detection_container.className = 'detection_container';
-
-    let detection_icon = document.createElement('img');
-    detection_icon.className = 'detection_icon';
-    detection_icon.src = 'icons/idle.png';
-
-    let detection_text = document.createElement('span');
-    detection_text.className = 'detection_text';
-    detection_text.textContent = 'Idle detection';
-
-    detection_container.appendChild(detection_icon);
-    detection_container.appendChild(detection_text);
-
-    let lower_detection_container = document.createElement('div');
-    lower_detection_container.className = 'lower_detection_container';
-
-    let inner_detection_container = document.createElement('div');
-    inner_detection_container.className = 'inner_detection_container';
-
-    let glowing_green = document.createElement('div');
-    glowing_green.className = 'status-circle';
-
-    let active_container = document.createElement('div');
-    active_container.className = 'active_container';
-
-    let active_text = document.createElement('span');
-    active_text.className = 'active_text';
-    active_text.textContent = 'Active Now -'; // should be dynamic either active or inactive
-
-    let active_msg = document.createElement('span');
-    active_msg.className = 'active_msg';
-    active_msg.textContent = ' no idle detected in the last 25 minutes. Keep it up!';
-
-    active_container.appendChild(active_text);
-    active_container.appendChild(active_msg);
-
-    inner_detection_container.appendChild(glowing_green);
-    inner_detection_container.appendChild(active_container);
-
-    lower_detection_container.appendChild(inner_detection_container);
-
-    let footer_container = document.createElement('div');
-    footer_container.className = 'footer_container';
-
-    let new_sesh_btn = document.createElement('button');
-    new_sesh_btn.className = 'new_sesh_btn';
-
-    let sesh_icon = document.createElement('img');
-    sesh_icon.src = 'icons/play2.png';
-    sesh_icon.className = 'sesh_icon';
-
-    let sesh_text = document.createElement('span');
-    sesh_text.className = 'sesh_text';
-    sesh_text.textContent = 'Start new session';
-
-    new_sesh_btn.appendChild(sesh_icon);
-    new_sesh_btn.appendChild(sesh_text);
-
-    footer_container.appendChild(new_sesh_btn);
-
-    body_section.appendChild(extension_header_container);
-    body_section.appendChild(streak_container);
-    body_section.appendChild(container_wrapper);
-    body_section.appendChild(focus_header_container);
-    body_section.appendChild(focus_body);
-    body_section.appendChild(sched_container);
-    body_section.appendChild(sched_btns_container);
-    body_section.appendChild(suggestion_container);
-    body_section.appendChild(lower_suggestion_container);
-    body_section.appendChild(detection_container);
-    body_section.appendChild(lower_detection_container);
-    body_section.appendChild(footer_container);
-
-    body_wrapper.appendChild(body_section);
+function getNextMilestone(days) {
+  return MILESTONES.find(m => m > days) || MILESTONES[MILESTONES.length - 1];
 }
 
-function saveState() {
-    chrome.storage.local.set({
-        sessionDuration: sessionDuration,
-        sessionBreak: sessionBreak,
-        isQuickieMode: isQuickieMode,
-        hasSelection: hasSelection,
-        originalSessionDuration: originalSessionDuration,
-        isOnBreak: isOnBreak
-    });
+function getPrevMilestone(days) {
+  const idx = MILESTONES.findIndex(m => m > days);
+  return idx <= 0 ? 0 : MILESTONES[idx - 1];
 }
 
-// Load state from chrome storage
-function loadState(callback) {
-    chrome.storage.local.get([
-        'sessionDuration',
-        'sessionBreak',
-        'isQuickieMode',
-        'hasSelection',
-        'originalSessionDuration',
-        'isOnBreak'
-    ], (result) => {
-        if (result.sessionDuration !== undefined) {
-            sessionDuration = result.sessionDuration;
-            originalSessionDuration = result.originalSessionDuration || result.sessionDuration;
-            isQuickieMode = result.isQuickieMode;
-            hasSelection = result.hasSelection;
-            isOnBreak = result.isOnBreak;
-            sessionBreak = result.sessionBreak || 0;
-            
-            // Update UI
-            updateQuickieDisplay();
-            
-            // Re-highlight the selected button based on time
-            if (sessionDuration > 0) {
-                const minutes = Math.floor(sessionDuration / 60);
-                const btnMap = {15: 'fifteenMin-btn', 30: 'thirtyMin-btn', 45: 'fortyfiveMin-btn', 60: 'sixtyMin-btn'};
-                const selectedBtn = btnMap[minutes];
-                if (selectedBtn) {
-                    const btn = document.querySelector('.' + selectedBtn);
-                    if (btn) btn.classList.add('min-btn-selected');
-                }
-            }
-        }
-        if (callback) callback();
-    });
-}
-
-function showConfirmOverlay(message, onConfirm, onCancel) {
-    const overlay = document.getElementById('confirmation-overlay');
-    const text = document.getElementById('confirmation-text');
-    const yesBtn = document.getElementById('confirm-yes');
-    const noBtn = document.getElementById('confirm-no');
-    
-    text.textContent = message;
-    overlay.style.display = 'flex';
-    
-    const handleYes = () => {
-        overlay.style.display = 'none';
-        if (onConfirm) onConfirm();
-        cleanup();
-    };
-    
-    const handleNo = () => {
-        overlay.style.display = 'none';
-        if (onCancel) onCancel();
-        cleanup();
-    };
-    
-    const cleanup = () => {
-        yesBtn.removeEventListener('click', handleYes);
-        noBtn.removeEventListener('click', handleNo);
-    };
-    
-    yesBtn.addEventListener('click', handleYes);
-    noBtn.addEventListener('click', handleNo);
-}
-
-// Initialize button handlers
-function initButtonHandlers() {
-    const buttons = document.querySelectorAll(
-        ".fifteenMin-btn, .thirtyMin-btn, .fortyfiveMin-btn, .sixtyMin-btn"
-    );
-
-    const durations = {
-        'fifteenMin-btn': 15,
-        'thirtyMin-btn': 30,
-        'fortyfiveMin-btn': 45,
-        'sixtyMin-btn': 60
-    };
-
-    buttons.forEach(btn => {
-        btn.addEventListener("click", () => {
-            const duration = durations[btn.classList[0]];
-            
-            // Only block switching if session timer is running (not break timer)
-            // Allow switching during break
-            const isSessionRunning = timerInterval && !isOnBreak;
-            
-            if (isSessionRunning) {
-                // Store the previously selected button to restore on "No"
-                const previouslySelected = document.querySelector('.min-btn-selected');
-                
-                pendingDuration = { duration };
-                showConfirmOverlay(
-                    `Switch from current session to ${duration} minutes?`,
-                    () => {
-                        // User clicked Yes - switch to new time and start immediately
-                        clearInterval(timerInterval);
-                        timerInterval = null;
-                        isOnBreak = false;
-                        
-                        // Update selection highlight
-                        buttons.forEach(b => b.classList.remove("min-btn-selected"));
-                        btn.classList.add("min-btn-selected");
-                        
-                        sessionDuration = duration * 60;
-                        originalSessionDuration = sessionDuration;
-                        updateQuickieDisplay();
-                        hasSelection = false;
-                        saveState();
-                        
-                        // Immediately start the new session
-                        setTimeout(() => startSession(), 0);
-                    },
-                    () => {
-                        // User clicked No - restore previous highlight
-                        buttons.forEach(b => b.classList.remove("min-btn-selected"));
-                        if (previouslySelected) {
-                            previouslySelected.classList.add("min-btn-selected");
-                        }
-                        hasSelection = true;
-                        pendingDuration = null;
-                    }
-                );
-                return;
-            }
-            
-            // If timer not running or only break timer is running, allow selection
-            buttons.forEach(b => b.classList.remove("min-btn-selected"));
-            btn.classList.add("min-btn-selected");
-            
-            hasSelection = true;
-            isQuickieMode = true;
-            
-            sessionDuration = duration * 60;
-            originalSessionDuration = sessionDuration;
-            updateQuickieDisplay();
-            saveState();
-        });
-    });
-    
-    document.getElementById('view-details-btn')?.addEventListener('click', function() {
-        popUp_extension(document.querySelector('.body-wrapper'));
-    });
-    document.querySelector('.start-btn')?.addEventListener('click', startSession);
-}
-
-// Load saved state and initialize
-document.addEventListener("DOMContentLoaded", () => {
-    // Load saved state first
-    loadState(() => {
-        // Initialize button handlers after state is loaded
-        initButtonHandlers();
-    });
-});
-
-function updateDisplay() {
-    const output = document.querySelector('.session-output');
-    output.innerHTML = "";
-
-    let goal_wrapper = document.createElement('div');
-    goal_wrapper.className = "today-goal-container";
-
-    let today_container = document.createElement('div');
-    today_container.className = "today-container";
-
-    let today_text = document.createElement('span');
-    today_text.className = "today-text";
-    today_text.textContent = "TODAY";
-
-    let today_time = document.createElement('span');
-    today_time.className = "today-time";
-    today_time.textContent = formatTime(sessionDuration);
-
-    today_container.appendChild(today_text);
-    today_container.appendChild(today_time);
-
-    let goal_container = document.createElement('div');
-    goal_container.className = "goal-container";
-
-    let goal_text = document.createElement('span');
-    goal_text.className = "goal-text";
-    goal_text.textContent = "GOAL";
-
-    let goal_time = document.createElement('span');
-    goal_time.className = "goal-time";
-    goal_time.textContent = formatTime(sessionDuration);
-
-    goal_container.appendChild(goal_text);
-    goal_container.appendChild(goal_time);
-
-    goal_wrapper.appendChild(today_container);
-    goal_wrapper.appendChild(goal_container);
-
-    output.appendChild(goal_wrapper);
-}
-
-function updateQuickieDisplay() {
-    const output = document.querySelector('.today-time');
-    output.innerHTML = "";
-
-    let quickie_time = document.createElement('span');
-    quickie_time.className = "quickie-time";
-    quickie_time.textContent = formatTime(sessionDuration);
-
-    output.appendChild(quickie_time);
-}
-
-function updateBreakDisplay() {
-    const output = document.querySelector('.dynamic-motivation-text');
-    output.innerHTML = "";
-
-    let break_wrapper = document.createElement('div');
-    break_wrapper.className = "break-container";
-
-    let break_text = document.createElement('span');
-    break_text.className = "break-text";
-    break_text.textContent = "REST: ";
-
-    let break_time = document.createElement('span');
-    break_time.className = "break-time";
-    break_time.textContent = formatTime(sessionBreak);
-
-    break_wrapper.appendChild(break_text);
-    break_wrapper.appendChild(break_time);
-
-    output.appendChild(break_wrapper);
-}
-
+// ── Utility ──────────────────────────────────────────────────────────────────
 function formatTime(seconds) {
-    if (timerInterval) {
-        const hours = Math.floor(seconds / 3600);
-        const minutes = Math.floor((seconds % 3600) / 60);
-        const secs = seconds % 60;
-        return `${hours}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+  if (timerInterval || isOnBreak) {
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = seconds % 60;
+    return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  }
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  return `${h}h ${m}m`;
+}
+
+function todayString() {
+  return new Date().toDateString();
+}
+
+// ── State persistence ─────────────────────────────────────────────────────────
+function saveState() {
+  const state = {
+    sessionDuration, sessionBreak, isQuickieMode,
+    hasSelection, originalSessionDuration, isOnBreak, isCompact
+  };
+  chrome.runtime.sendMessage({ type: "saveState", state });
+}
+
+function saveStreak() {
+  chrome.runtime.sendMessage({ type: "saveStreak", streak: { streakDays, lastSessionDate } });
+}
+
+function saveFocusToggles() {
+  chrome.runtime.sendMessage({ type: "saveFocusToggles", toggles: focusToggles });
+}
+
+function saveScheduled() {
+  chrome.runtime.sendMessage({ type: "saveScheduled", scheduled: scheduledSessions });
+}
+
+function loadState(callback) {
+  chrome.runtime.sendMessage({ type: "loadState" }, (response) => {
+    if (!response) { if (callback) callback(); return; }
+
+    // Core session state
+    const s = response.state || {};
+    sessionDuration         = s.sessionDuration         ?? 0;
+    originalSessionDuration = s.originalSessionDuration ?? sessionDuration;
+    isQuickieMode           = s.isQuickieMode           ?? false;
+    hasSelection            = s.hasSelection            ?? false;
+    isOnBreak               = s.isOnBreak               ?? false;
+    sessionBreak            = s.sessionBreak            ?? 0;
+    isCompact               = response.isCompact        ?? false;
+
+    // Streak
+    const streak = response.streak || { streakDays: 0, lastSessionDate: null };
+    streakDays       = streak.streakDays;
+    lastSessionDate  = streak.lastSessionDate;
+
+    // Focus toggles
+    focusToggles = response.focusToggles || { facebook: false, instagram: false, twitter: false, tiktok: false, youtube: false };
+
+    // Scheduled sessions
+    scheduledSessions = response.scheduled || [];
+
+    if (callback) callback();
+  });
+}
+
+// ── Header streak display (always visible) ────────────────────────────────────
+function updateHeaderStreak() {
+  const countEl = document.getElementById('streak-count');
+  if (countEl) countEl.textContent = streakDays;
+
+  const header = document.getElementById('streak-header');
+  if (header) {
+    const next = getNextMilestone(streakDays);
+    if (streakDays >= next || MILESTONES.includes(streakDays)) {
+      header.classList.add('milestone');
+    } else {
+      header.classList.remove('milestone');
     }
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    return `${hours}h ${minutes}m`;
+  }
+
+  // Header progress bar (session progress)
+  updateHeaderProgressBar();
 }
 
+function updateHeaderProgressBar() {
+  const bar     = document.getElementById('header-progress-bar');
+  const percent = document.getElementById('header-progress-percent');
+  if (!bar || !percent) return;
+
+  // Goal is either scheduled goal or originalSessionDuration
+  const goal = scheduledGoalDuration > 0
+    ? scheduledGoalDuration * 60
+    : (originalSessionDuration || 0);
+
+  if (goal <= 0) {
+    bar.style.width = '0%';
+    percent.textContent = '0%';
+    return;
+  }
+
+  const elapsed  = goal - sessionDuration;
+  const pct      = Math.min(100, Math.max(0, Math.round((elapsed / goal) * 100)));
+  bar.style.width      = pct + '%';
+  percent.textContent  = pct + '%';
+}
+
+// ── Main view (compact) ───────────────────────────────────────────────────────
+function updateCompactTimerDisplay() {
+  const currentTimeEl = document.getElementById('current-time');
+  const goalTimeEl    = document.getElementById('goal-time');
+  if (!currentTimeEl) return;
+
+  const display = sessionDuration > 0 ? formatTime(sessionDuration) : '0h 0m';
+
+  currentTimeEl.innerHTML = display
+    .split(' ')
+    .map(part => `<span>${part}</span>`)
+    .join('');
+
+  // Goal
+  const goal = scheduledGoalDuration > 0
+    ? scheduledGoalDuration * 60
+    : originalSessionDuration;
+
+  if (goalTimeEl) {
+    const gDisplay = goal > 0 ? formatTime(goal) : '0h 0m';
+    goalTimeEl.innerHTML = gDisplay
+      .split(' ')
+      .map(part => `<span>${part}</span>`)
+      .join('');
+  }
+}
+
+function updateSessionOutputDisplay() {
+  const output = document.getElementById('session-output');
+  if (!output) return;
+  output.innerHTML = '';
+
+  if (isOnBreak && sessionBreak > 0) {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'break-container';
+    wrapper.innerHTML = `
+      <span class="break-text">REST:</span>
+      <span class="break-time">${formatTime(sessionBreak)}</span>
+    `;
+    output.appendChild(wrapper);
+    return;
+  }
+
+  if (timerInterval && sessionDuration > 0) {
+    const el = document.createElement('span');
+    el.style.cssText = 'font-size:20px;font-weight:bold;color:#213448;font-family:system-ui';
+    el.textContent = formatTime(sessionDuration);
+    output.appendChild(el);
+  }
+}
+
+// ── Confirm overlay ───────────────────────────────────────────────────────────
+function showConfirmOverlay(message, onConfirm, onCancel) {
+  const overlay = document.getElementById('confirmation-overlay');
+  const text    = document.getElementById('confirmation-text');
+  const yesBtn  = document.getElementById('confirm-yes');
+  const noBtn   = document.getElementById('confirm-no');
+
+  text.textContent    = message;
+  overlay.style.display = 'flex';
+
+  const cleanup = () => {
+    yesBtn.removeEventListener('click', handleYes);
+    noBtn.removeEventListener('click', handleNo);
+  };
+
+  const handleYes = () => { overlay.style.display = 'none'; if (onConfirm) onConfirm(); cleanup(); };
+  const handleNo  = () => { overlay.style.display = 'none'; if (onCancel) onCancel(); cleanup(); };
+
+  yesBtn.addEventListener('click', handleYes);
+  noBtn.addEventListener('click', handleNo);
+}
+
+// ── Session control ───────────────────────────────────────────────────────────
 function startSession() {
-    if (sessionDuration <= 0) return;
-    
-    clearInterval(timerInterval);
-    timerInterval = setInterval(() => {
-        sessionDuration--;
-        if (sessionDuration <= 0) {
-            clearInterval(timerInterval);
-            timerInterval = null;
-            if (isOnBreak) {
-                // Break ended, resume original session
-                isOnBreak = false;
-                sessionDuration = originalSessionDuration;
-                updateDisplay(); // Back to normal quickie display
-                showStartButton();
-                alert("Break ended! Resuming session...");
-            } else {
-                // Session completed
-                showStartButton();
-                alert("Session complete!");
-                resetToDefault();
-            }
-        }
-        updateDisplayBasedOnState();
-    }, 1000);
-    
-    showBreakStopButtons();
+  if (sessionDuration <= 0) return;
+
+  clearInterval(timerInterval);
+  timerInterval = setInterval(() => {
+    sessionDuration--;
+
+    if (sessionDuration <= 0) {
+      clearInterval(timerInterval);
+      timerInterval = null;
+
+      if (isOnBreak) {
+        isOnBreak       = false;
+        sessionDuration = originalSessionDuration;
+        updateCompactTimerDisplay();
+        showStartButton();
+        setMotivationText("Break ended! Resuming session...");
+      } else {
+        onSessionComplete();
+      }
+    }
+
+    updateCompactTimerDisplay();
+    updateSessionOutputDisplay();
+    updateHeaderProgressBar();
     saveState();
+  }, 1000);
+
+  showBreakStopButtons();
+  saveState();
 }
 
-function showBreakStopButtons() {
-    const container = document.querySelector('.start-session-container');
-    container.innerHTML = `
-        <div class="break_stop_container">
-            <div class="btns-stop-break">
-                <button class="break-btn" id="break-btn">
-                    <img src="icons/break.png" class="stop-break-icon">
-                    Break
-                </button>
-            </div>
-
-            <div class="btns-stop-break">
-                <button class="stop-btn" id="stop-btn">
-                    <img src="icons/stop.png" class="stop-break-icon">
-                    Stop
-                </button>
-            </div>
-        </div>
-    `;
-    document.getElementById('break-btn').addEventListener('click', takeBreak);
-    document.getElementById('stop-btn').addEventListener('click', stopSession);
-}
-
-function showStartButton() {
-    const container = document.querySelector('.start-session-container');
-    container.innerHTML = `
-        <button class="start-btn">
-            <img src="icons/play2.png" class="start-icon">
-            Start Session
-        </button>
-    `;
-    document.querySelector('.start-btn').addEventListener('click', startSession);
+function onSessionComplete() {
+  chrome.runtime.sendMessage({ type: "sessionComplete" }, (res) => {
+    if (res && res.streak) {
+      streakDays      = res.streak.streakDays;
+      lastSessionDate = res.streak.lastSessionDate;
+      updateHeaderStreak();
+      // If detail view is open, refresh streak section
+      refreshDetailStreakSection();
+    }
+  });
+  showStartButton();
+  setMotivationText("Session complete! Great work 🎉");
+  resetToDefault();
 }
 
 function takeBreak() {
-    clearInterval(timerInterval);
-    timerInterval = null;
-    isOnBreak = true;
+  clearInterval(timerInterval);
+  timerInterval = null;
+  isOnBreak = true;
+  originalSessionDuration = sessionDuration;
 
-    // Save remaining Quickie time
-    originalSessionDuration = sessionDuration;
+  sessionBreak = 5 * 60;
 
-    // Start break timer (5 minutes)
-    sessionBreak = 5 * 60;
-    updateBreakDisplay();
+  timerInterval = setInterval(() => {
+    sessionBreak--;
 
-    timerInterval = setInterval(() => {
-        sessionBreak--; // decrement break, not sessionDuration
-        if (sessionBreak <= 0) {
-            clearInterval(timerInterval);
-            timerInterval = null;
-            isOnBreak = false;
-
-            // Resume Quickie from saved time
-            sessionDuration = originalSessionDuration;
-            updateQuickieDisplay();
-            showBreakStopButtons();
-
-            const breakBtn = document.getElementById('break-btn');
-            if (breakBtn) {
-                breakBtn.innerHTML = `<img src="icons/break.png" class="stop-break-icon"> Break`;
-                breakBtn.onclick = takeBreak;
-            }
-            alert("Break ended! Resuming session...");
-        }
-        updateBreakDisplay();
-    }, 1000);
-
-    showBreakStopButtons();
-
-    // Change Break button to Continue
-    const breakBtn = document.getElementById('break-btn');
-    if (breakBtn) {
-        breakBtn.innerHTML = `<img src="icons/break.png" class="stop-break-icon"> Continue`;
-        breakBtn.onclick = resumeSession;
+    if (sessionBreak <= 0) {
+      clearInterval(timerInterval);
+      timerInterval = null;
+      isOnBreak     = false;
+      sessionDuration = originalSessionDuration;
+      updateCompactTimerDisplay();
+      showBreakStopButtons();
+      const breakBtn = document.getElementById('break-btn');
+      if (breakBtn) {
+        breakBtn.innerHTML = `<img src="icons/break.png" class="stop-break-icon"> Break`;
+        breakBtn.onclick = takeBreak;
+      }
+      setMotivationText("Break ended! Let's get back to it.");
     }
-}
 
-
-function stopSession() {
-    clearInterval(timerInterval);
-    hasSelection = false;
-    timerInterval = null;
-    sessionDuration = 0;
-    isQuickieMode = false;
-    isOnBreak = false;
-    originalSessionDuration = 0;
-    const output = document.querySelector('.today-time');
-    output.innerHTML = "0h 0m";
-    const mascot_text = document.querySelector('.dynamic-motivation-text');
-    mascot_text.innerHTML = "See you on your next session to Lock in.";
-    showStartButton();
-    
-    const buttons = document.querySelectorAll(
-        ".fifteenMin-btn, .thirtyMin-btn, .fortyfiveMin-btn, .sixtyMin-btn"
-    );
-    buttons.forEach(btn => btn.classList.remove("min-btn-selected"));
+    updateSessionOutputDisplay();
     saveState();
+  }, 1000);
+
+  showBreakStopButtons();
+
+  const breakBtn = document.getElementById('break-btn');
+  if (breakBtn) {
+    breakBtn.innerHTML = `<img src="icons/break.png" class="stop-break-icon"> Continue`;
+    breakBtn.onclick = resumeSession;
+  }
+
+  saveState();
 }
 
 function resumeSession() {
-    const output = document.querySelector('.dynamic-motivation-text');
-    output.innerHTML = "";
+  clearInterval(timerInterval);
+  timerInterval = null;
+  isOnBreak     = false;
+  sessionDuration = originalSessionDuration;
 
-    let continue_text = document.createElement('span');
-    continue_text.textContent = "Let's get back to work and perform better!" 
-    
-    output.appendChild(continue_text);
+  setMotivationText("Let's get back to work and perform better!");
+  updateCompactTimerDisplay();
+  showBreakStopButtons();
 
-    clearInterval(timerInterval);
-    timerInterval = null;
-    isOnBreak = false;
-    // sessionDuration is already set to originalSessionDuration in takeBreak when break ends
-    // But if user clicks continue during break, we need to resume from remaining break time
-    // Actually, let's just resume the original session (not the break)
-    sessionDuration = originalSessionDuration; // Resume the original session
-    
-    updateQuickieDisplay(); // Back to quickie display
-    showBreakStopButtons(); // Reset buttons to break and stop
-    // Change the continue button back to a break button
-    
-    timerInterval = setInterval(() => {
-        sessionDuration--;
-        if (sessionDuration <= 0) {
-            clearInterval(timerInterval);
-            timerInterval = null;
-            showStartButton();
-            alert("Session complete!");
-            resetToDefault();
-        }
-        updateQuickieDisplay();
-    }, 1000);
-    
-    const breakBtn = document.getElementById('break-btn');
-    if (breakBtn) {
-        breakBtn.innerHTML = `<img src="icons/break.png" class="stop-break-icon"> Break`;
-        breakBtn.onclick = takeBreak;
+  timerInterval = setInterval(() => {
+    sessionDuration--;
+    if (sessionDuration <= 0) {
+      clearInterval(timerInterval);
+      timerInterval = null;
+      onSessionComplete();
     }
+    updateCompactTimerDisplay();
+    updateSessionOutputDisplay();
+    updateHeaderProgressBar();
+    saveState();
+  }, 1000);
+
+  const breakBtn = document.getElementById('break-btn');
+  if (breakBtn) {
+    breakBtn.innerHTML = `<img src="icons/break.png" class="stop-break-icon"> Break`;
+    breakBtn.onclick = takeBreak;
+  }
+
+  saveState();
 }
 
-function updateDisplayBasedOnState() {
-    if (isOnBreak) {
-        updateBreakDisplay();
-    } else if (isQuickieMode) {
-        updateQuickieDisplay();
-    } else {
-        updateDisplay();
-    }
+function stopSession() {
+  clearInterval(timerInterval);
+  timerInterval          = null;
+  sessionDuration        = 0;
+  isQuickieMode          = false;
+  isOnBreak              = false;
+  hasSelection           = false;
+  originalSessionDuration = 0;
+
+  updateCompactTimerDisplay();
+  updateSessionOutputDisplay();
+  updateHeaderProgressBar();
+  setMotivationText("See you on your next session to Lock in.");
+  showStartButton();
+
+  document.querySelectorAll('.fifteenMin-btn,.thirtyMin-btn,.fortyfiveMin-btn,.sixtyMin-btn')
+    .forEach(b => b.classList.remove('min-btn-selected'));
+
+  saveState();
 }
 
 function resetToDefault() {
-    hasSelection = false;
-    isQuickieMode = false;
-    isOnBreak = false;
-    sessionDuration = 0;
-    originalSessionDuration = 0;
-    updateDisplay();
-    showStartButton();
-    
-    // Remove selection from buttons
-    const buttons = document.querySelectorAll(
-        ".fifteenMin-btn, .thirtyMin-btn, .fortyfiveMin-btn, .sixtyMin-btn"
-    );
-    buttons.forEach(btn => btn.classList.remove("min-btn-selected"));
+  hasSelection           = false;
+  isQuickieMode          = false;
+  isOnBreak              = false;
+  sessionDuration        = 0;
+  originalSessionDuration = 0;
+
+  updateCompactTimerDisplay();
+  updateSessionOutputDisplay();
+  showStartButton();
+
+  document.querySelectorAll('.fifteenMin-btn,.thirtyMin-btn,.fortyfiveMin-btn,.sixtyMin-btn')
+    .forEach(b => b.classList.remove('min-btn-selected'));
 }
 
-function quickie_fifteen(container){
-    clearInterval(timerInterval);
-    timerInterval = null;
-    sessionDuration = 15 * 60;
-    originalSessionDuration = sessionDuration;
-    updateDisplay();
+// ── Button state helpers ──────────────────────────────────────────────────────
+function showBreakStopButtons() {
+  const container = document.getElementById('start-session-container');
+  if (!container) return;
+  container.innerHTML = `
+    <div class="break_stop_container">
+      <div class="btns-stop-break">
+        <button class="break-btn" id="break-btn">
+          <img src="icons/break.png" class="stop-break-icon"> Break
+        </button>
+      </div>
+      <div class="btns-stop-break">
+        <button class="stop-btn" id="stop-btn">
+          <img src="icons/stop.png" class="stop-break-icon"> Stop
+        </button>
+      </div>
+    </div>
+  `;
+  document.getElementById('break-btn').addEventListener('click', takeBreak);
+  document.getElementById('stop-btn').addEventListener('click', stopSession);
 }
 
-function quickie_thirty(container){
-    clearInterval(timerInterval);
-    timerInterval = null;
-    sessionDuration = 30 * 60;
-    originalSessionDuration = sessionDuration;
-    updateDisplay();
+function showStartButton() {
+  const container = document.getElementById('start-session-container');
+  if (!container) return;
+  container.innerHTML = `
+    <button class="start-btn" id="start-btn">
+      <img src="icons/play2.png" class="start-icon">
+      Start Session
+    </button>
+  `;
+  document.getElementById('start-btn').addEventListener('click', startSession);
 }
 
-function quickie_fortyfive(container){
-    clearInterval(timerInterval);
-    timerInterval = null;
-    sessionDuration = 45 * 60;
-    originalSessionDuration = sessionDuration;
-    updateDisplay();
+function setMotivationText(text) {
+  const el = document.getElementById('motivation-text');
+  if (el) el.textContent = text;
 }
 
-function quickie_sixty(container){
-    clearInterval(timerInterval);
-    timerInterval = null;
-    sessionDuration = 60 * 60;
-    originalSessionDuration = sessionDuration;
-    updateDisplay();
+// ── Quick session button handlers ─────────────────────────────────────────────
+function initButtonHandlers() {
+  const buttons  = document.querySelectorAll('.fifteenMin-btn,.thirtyMin-btn,.fortyfiveMin-btn,.sixtyMin-btn');
+  const durations = { 'fifteenMin-btn': 15, 'thirtyMin-btn': 30, 'fortyfiveMin-btn': 45, 'sixtyMin-btn': 60 };
+
+  buttons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const duration = durations[btn.classList[0]];
+      const isRunning = timerInterval && !isOnBreak;
+
+      if (isRunning) {
+        const prev = document.querySelector('.min-btn-selected');
+        pendingDuration = { duration };
+        showConfirmOverlay(
+          `Switch from current session to ${duration} minutes?`,
+          () => {
+            clearInterval(timerInterval);
+            timerInterval = null;
+            isOnBreak     = false;
+            buttons.forEach(b => b.classList.remove('min-btn-selected'));
+            btn.classList.add('min-btn-selected');
+            sessionDuration        = duration * 60;
+            originalSessionDuration = sessionDuration;
+            updateCompactTimerDisplay();
+            hasSelection  = false;
+            saveState();
+            setTimeout(() => startSession(), 0);
+          },
+          () => {
+            buttons.forEach(b => b.classList.remove('min-btn-selected'));
+            if (prev) prev.classList.add('min-btn-selected');
+            hasSelection  = true;
+            pendingDuration = null;
+          }
+        );
+        return;
+      }
+
+      buttons.forEach(b => b.classList.remove('min-btn-selected'));
+      btn.classList.add('min-btn-selected');
+      hasSelection           = true;
+      isQuickieMode          = true;
+      sessionDuration        = duration * 60;
+      originalSessionDuration = sessionDuration;
+      updateCompactTimerDisplay();
+      saveState();
+    });
+  });
+
+  // Restore highlight from saved state
+  if (sessionDuration > 0 && !timerInterval) {
+    const mins = Math.floor(sessionDuration / 60);
+    const map  = { 15: 'fifteenMin-btn', 30: 'thirtyMin-btn', 45: 'fortyfiveMin-btn', 60: 'sixtyMin-btn' };
+    const cls  = map[mins];
+    if (cls) {
+      const b = document.querySelector('.' + cls);
+      if (b) b.classList.add('min-btn-selected');
+    }
+  }
+
+  // Start session button
+  const startBtn = document.getElementById('start-btn');
+  if (startBtn) startBtn.addEventListener('click', startSession);
+
+  // View details button
+  document.getElementById('view-details-btn')?.addEventListener('click', () => {
+    saveState();
+    buildExtensionDetailView(document.getElementById('body-wrapper'));
+  });
+
+  // Compact btn (header)
+  document.getElementById('compact-btn')?.addEventListener('click', () => {
+    toggleCompactView();
+  });
 }
+
+// ── Compact toggle ────────────────────────────────────────────────────────────
+function toggleCompactView() {
+  isCompact = !isCompact;
+  chrome.storage.local.set({ lockInIsCompact: isCompact });
+  const img = document.getElementById('compact-icon-img');
+  if (img) img.src = isCompact ? 'icons/down.png' : 'icons/up.png';
+
+  const bodyWrapper = document.getElementById('body-wrapper');
+  if (isCompact) {
+    bodyWrapper.style.display = 'none';
+  } else {
+    bodyWrapper.style.display = '';
+    if (!document.getElementById('main-view')) {
+      restoreMainView();
+    }
+  }
+  saveState();
+}
+
+function restoreMainView() {
+  const bw = document.getElementById('body-wrapper');
+  bw.innerHTML = '';
+  buildMainViewDOM(bw);
+  initButtonHandlers();
+}
+
+// ── Build main view DOM ───────────────────────────────────────────────────────
+function buildMainViewDOM(wrapper) {
+  wrapper.innerHTML = `
+    <div class="body-container" id="main-view">
+      <div class="mascot-container">
+        <img src="icons/mascot3.png" class="mascot-icon">
+        <span class="dynamic-motivation-text" id="motivation-text">
+          Strive to be 1% better today than you were yesterday.
+        </span>
+      </div>
+
+      <div class="today-goal-wrapper">
+        <div class="today-container">
+          <span class="today-text">CURRENT</span>
+          <span class="today-time" id="current-time"><span class="hour">0h</span><span class="mins">0m</span></span>
+        </div>
+        <div class="goal-container">
+          <span class="goal-text">DAILY GOAL</span>
+          <span class="goal-time" id="goal-time"><span class="hour">0h</span><span class="mins">0m</span></span>
+        </div>
+      </div>
+
+      <div class="session-output" id="session-output"></div>
+
+      <span class="session-header-text">QUICK SESSION</span>
+      <div class="quick-sessions-container" id="quick-sessions-container">
+        <button class="fifteenMin-btn"><span class="session-header">15m</span><span class="session-subheader">quick</span></button>
+        <button class="thirtyMin-btn"><span class="session-header">30m</span><span class="session-subheader">default</span></button>
+        <button class="fortyfiveMin-btn"><span class="session-header">45m</span><span class="session-subheader">deep</span></button>
+        <button class="sixtyMin-btn"><span class="session-header">60m</span><span class="session-subheader">flow</span></button>
+      </div>
+
+      <div class="duration-picker" id="duration-picker" style="display:none;">
+        <span class="duration-picker-label">Choose session duration:</span>
+        <div class="duration-btns">
+          <button class="dur-btn" data-mins="15">15m</button>
+          <button class="dur-btn" data-mins="30">30m</button>
+          <button class="dur-btn" data-mins="45">45m</button>
+          <button class="dur-btn" data-mins="60">60m</button>
+        </div>
+      </div>
+
+      <div class="start-session-container" id="start-session-container">
+        <button class="start-btn" id="start-btn">
+          <img src="icons/play2.png" class="start-icon"> Start Session
+        </button>
+      </div>
+
+      <div class="view-session-container">
+        <button class="view-btn" id="view-details-btn">
+          <img src="icons/down.png" class="view-icon"> View Details
+        </button>
+      </div>
+    </div>
+  `;
+}
+
+// ── EXTENSION DETAIL VIEW ─────────────────────────────────────────────────────
+function buildExtensionDetailView(bodyWrapper) {
+  bodyWrapper.innerHTML = '';
+
+  const section = document.createElement('section');
+  section.className = 'extension-section';
+
+  // ── Header motivator ──
+  section.appendChild(buildEl('div', 'extension_header_container', `
+    <img src="icons/mascot3.png" class="mascot_extension">
+    <span class="extension_header_text">Strive to be 1% better today than you were yesterday.</span>
+  `));
+
+  // ── Streak header row ──
+  const streakCont = buildEl('div', 'streak_container_extension');
+  const fireCont   = buildEl('div', 'fire_container_extension', `
+    <img src="icons/fire2.png" class="fire_icon_extension">
+    <span class="fire_text_extension">Streak</span>
+  `);
+  const nextCont = buildEl('div', 'next_container_extension', `
+    <span class="next_extension">Next:</span>
+    <span class="days_extension" id="ext-next-days">${getNextMilestone(streakDays)} days</span>
+  `);
+  streakCont.appendChild(fireCont);
+  streakCont.appendChild(nextCont);
+
+  // ── Milestone icons + progress bar ──
+  const extWrapper = buildEl('div', 'extension_container_wrapper');
+
+  const iconWrapper = buildEl('div', 'day_icon_wrapper');
+  const milestoneData = [
+    { days: 3,  icon: 'icons/trophy.png',  cls: 'trophy_extension' },
+    { days: 7,  icon: 'icons/trophy.png',  cls: 'trophy_extension' },
+    { days: 10, icon: 'icons/star.png',    cls: 'star_extension' },
+    { days: 14, icon: 'icons/target.png',  cls: 'target_extension' },
+    { days: 30, icon: 'icons/diamond.png', cls: 'target_extension' }
+  ];
+
+  milestoneData.forEach(m => {
+    const cont = buildEl('div', 'day_icon_container');
+    const img  = document.createElement('img');
+    img.src = m.icon;
+    img.className = m.cls + (streakDays >= m.days ? ' unlocked' : '');
+
+    const numCls = (m.days === 3 || m.days === 7) ? 'day_num_extension' : 'day_num_extension_other';
+    const num    = buildEl('span', numCls, `${m.days}d`);
+
+    cont.appendChild(img);
+    cont.appendChild(num);
+    iconWrapper.appendChild(cont);
+  });
+
+  // Streak bar
+  const next = getNextMilestone(streakDays);
+  const prev = getPrevMilestone(streakDays);
+  const pct  = next === prev ? 100 : Math.round(((streakDays - prev) / (next - prev)) * 100);
+  const daysToGo = Math.max(0, next - streakDays);
+
+  const barWrapper = buildEl('div', 'bar_text_wrapper');
+  const barCont    = buildEl('div', 'streak_bar_container');
+  const bar        = buildEl('div', 'streak_bar');
+  bar.style.width  = Math.min(pct, 100) + '%';
+  bar.id           = 'streak-bar-detail';
+  barCont.appendChild(bar);
+
+  const toNum = buildEl('div', 'to_num_container', `
+    <span class="extension_num_days" id="ext-days-to-go">${daysToGo}</span>
+    <span class="extension_to_go">days to go</span>
+  `);
+
+  barWrapper.appendChild(barCont);
+  barWrapper.appendChild(toNum);
+
+  extWrapper.appendChild(iconWrapper);
+  extWrapper.appendChild(barWrapper);
+
+  section.appendChild(streakCont);
+  section.appendChild(extWrapper);
+
+  // ── Focus Mode ──
+  section.appendChild(buildFocusSection());
+
+  // ── Schedule ──
+  section.appendChild(buildScheduleSection());
+
+  // ── AI suggestion placeholder ──
+  section.appendChild(buildEl('div', 'suggestion_container', `
+    <div class="ai_icon_text_container">
+      <img src="icons/ai.png" class="ai_icon">
+      <span class="ai_text">AI suggestions</span>
+    </div>
+    <span class="past_sesh">from past sessions</span>
+  `));
+  section.appendChild(buildEl('div', 'lower_suggestion_container', 'Complete more sessions for AI-powered suggestions.'));
+
+  // ── Idle Detection ──
+  section.appendChild(buildIdleSection());
+
+  // ── Footer ──
+  const footer = buildEl('div', 'footer_container');
+  const newBtn = buildEl('button', 'new_sesh_btn', `
+    <img src="icons/play2.png" class="sesh_icon"> Start new session
+  `);
+  newBtn.addEventListener('click', () => handleNewSessionFromDetail(bodyWrapper));
+  footer.appendChild(newBtn);
+  section.appendChild(footer);
+
+  bodyWrapper.appendChild(section);
+
+  // Start idle detection loop
+  startIdleDetection();
+}
+
+function refreshDetailStreakSection() {
+  // Only refresh if detail view is showing
+  const bar     = document.getElementById('streak-bar-detail');
+  const daysEl  = document.getElementById('ext-days-to-go');
+  const nextEl  = document.getElementById('ext-next-days');
+  if (!bar) return;
+
+  const next    = getNextMilestone(streakDays);
+  const prev    = getPrevMilestone(streakDays);
+  const pct     = next === prev ? 100 : Math.round(((streakDays - prev) / (next - prev)) * 100);
+  const daysToGo = Math.max(0, next - streakDays);
+
+  bar.style.width = Math.min(pct, 100) + '%';
+  if (daysEl) daysEl.textContent = daysToGo;
+  if (nextEl) nextEl.textContent = `${next} days`;
+
+  // Update milestone icons
+  const milestones = [3, 7, 10, 14, 30];
+  const icons = document.querySelectorAll('.day_icon_wrapper img');
+  icons.forEach((img, i) => {
+    if (streakDays >= milestones[i]) img.classList.add('unlocked');
+    else img.classList.remove('unlocked');
+  });
+}
+
+// ── Focus Section ─────────────────────────────────────────────────────────────
+function buildFocusSection() {
+  const frag = document.createDocumentFragment();
+
+  const header = buildEl('div', 'focus_header_container', `
+    <div class="icon_text_focus">
+      <img src="icons/focus.png" class="focus_icon">
+      <span class="focus_text">Focus Mode</span>
+    </div>
+  `);
+
+  const statusSpan = document.createElement('span');
+  statusSpan.className = 'focus_status' + (isAnyFocusActive() ? ' active' : '');
+  statusSpan.id        = 'focus-status-text';
+  statusSpan.textContent = isAnyFocusActive() ? 'Active' : 'Inactive';
+  header.appendChild(statusSpan);
+
+  const body = buildEl('div', 'focus_body');
+
+  const sites = [
+    { key: 'facebook',  icon: 'icons/fb.png',     label: 'Facebook' },
+    { key: 'instagram', icon: 'icons/ig.png',     label: 'Instagram' },
+    { key: 'twitter',   icon: 'icons/x.png',      label: 'X/Twitter' },
+    { key: 'tiktok',    icon: 'icons/tiktok.png', label: 'Tiktok' },
+    { key: 'youtube',   icon: 'icons/yt.png',     label: 'Youtube' }
+  ];
+
+  sites.forEach((site, i) => {
+    if (i > 0) body.appendChild(document.createElement('hr'));
+
+    const wrapper = buildEl('div', 'focuses_wrapper');
+    const cont    = buildEl('div', 'focuses_container', `
+      <img src="${site.icon}" class="focus_icon">
+      <span class="focus_icon_text">${site.label}</span>
+    `);
+
+    const toggle = buildEl('div', 'toggle' + (focusToggles[site.key] ? ' on' : ''));
+    const knob   = buildEl('div', 'knob');
+    toggle.appendChild(knob);
+
+    toggle.addEventListener('click', () => {
+      focusToggles[site.key] = !focusToggles[site.key];
+      toggle.classList.toggle('on', focusToggles[site.key]);
+
+      // Update status label
+      const statusEl = document.getElementById('focus-status-text');
+      if (statusEl) {
+        const active = isAnyFocusActive();
+        statusEl.textContent = active ? 'Active' : 'Inactive';
+        statusEl.className   = 'focus_status' + (active ? ' active' : '');
+      }
+
+      saveFocusToggles();
+    });
+
+    wrapper.appendChild(cont);
+    wrapper.appendChild(toggle);
+    body.appendChild(wrapper);
+  });
+
+  frag.appendChild(header);
+  frag.appendChild(body);
+  return frag;
+}
+
+function isAnyFocusActive() {
+  return Object.values(focusToggles).some(v => v);
+}
+
+// ── Schedule Section ──────────────────────────────────────────────────────────
+function buildScheduleSection() {
+  const frag = document.createDocumentFragment();
+
+  const schedCont = buildEl('div', 'sched_container');
+  const headerRow = buildEl('div', 'sched_header_container', `
+    <img src="icons/calendar.png" class="sched_icon_text">
+    <span class="sched_text">Plan sessions</span>
+  `);
+
+  const planCont = buildEl('div', 'plan_container');
+  const dayNum   = document.createElement('span');
+  dayNum.className   = 'day_planned_sched';
+  dayNum.id          = 'sched-count';
+  dayNum.textContent = scheduledSessions.length;
+
+  const schedLabel = document.createElement('span');
+  schedLabel.className   = 'day_planned_sched';
+  schedLabel.textContent = 'scheduled';
+
+  planCont.appendChild(dayNum);
+  planCont.appendChild(schedLabel);
+  schedCont.appendChild(headerRow);
+  schedCont.appendChild(planCont);
+
+  // Session list
+  const sessList = buildEl('div', 'sched_sessions_container', '');
+  sessList.id = 'sched-sessions-list';
+  renderScheduledSessions(sessList);
+
+  // Add button
+  const btnCont = buildEl('div', 'sched_btns_container');
+  const addBtn  = buildEl('button', 'sched_btn', '+ Schedule Session');
+  addBtn.addEventListener('click', () => openScheduleModal());
+  btnCont.appendChild(addBtn);
+
+  frag.appendChild(schedCont);
+  if (scheduledSessions.length > 0) frag.appendChild(sessList);
+  frag.appendChild(btnCont);
+  return frag;
+}
+
+function renderScheduledSessions(container) {
+  if (!container) container = document.getElementById('sched-sessions-list');
+  if (!container) return;
+  container.innerHTML = '';
+
+  scheduledSessions.forEach((sess, idx) => {
+    const item = buildEl('div', 'each_session_container');
+    const dt   = new Date(sess.datetime);
+    const label = `${dt.toLocaleDateString()} ${dt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} · ${sess.duration}m`;
+
+    item.innerHTML = `
+      <span>${label}</span>
+      <button class="session_delete_btn" data-idx="${idx}">✕</button>
+    `;
+    item.querySelector('.session_delete_btn').addEventListener('click', () => {
+      scheduledSessions.splice(idx, 1);
+      saveScheduled();
+      updateScheduledGoal();
+      renderScheduledSessions();
+      // update count
+      const cnt = document.getElementById('sched-count');
+      if (cnt) cnt.textContent = scheduledSessions.length;
+    });
+
+    container.appendChild(item);
+  });
+}
+
+function updateScheduledGoal() {
+  // Find the next upcoming session
+  const now = Date.now();
+  const upcoming = scheduledSessions
+    .filter(s => new Date(s.datetime).getTime() > now)
+    .sort((a, b) => new Date(a.datetime) - new Date(b.datetime));
+
+  scheduledGoalDuration = upcoming.length > 0 ? upcoming[0].duration : 0;
+  updateHeaderProgressBar();
+  updateCompactTimerDisplay();
+}
+
+// Schedule modal
+function openScheduleModal() {
+  const modal = document.getElementById('schedule-modal');
+  if (!modal) return;
+
+  // Reset steps
+  document.getElementById('sched-step-1').style.display = '';
+  document.getElementById('sched-step-2').style.display = 'none';
+
+  // Clear inputs
+  document.getElementById('sched-date-input').value = '';
+  document.getElementById('sched-time-input').value = '';
+  let selectedDur = 15;
+  document.querySelectorAll('.sched-dur-btn').forEach(b => {
+    b.classList.toggle('active', parseInt(b.dataset.dur) === 15);
+    b.onclick = () => {
+      selectedDur = parseInt(b.dataset.dur);
+      document.querySelectorAll('.sched-dur-btn').forEach(x => x.classList.remove('active'));
+      b.classList.add('active');
+    };
+  });
+
+  modal.style.display = 'flex';
+
+  document.getElementById('schedule-modal-close').onclick = () => {
+    modal.style.display = 'none';
+  };
+
+  document.getElementById('sched-date-confirm').onclick = () => {
+    const dateVal = document.getElementById('sched-date-input').value;
+    if (!dateVal) return;
+    document.getElementById('sched-step-1').style.display = 'none';
+    document.getElementById('sched-step-2').style.display = '';
+  };
+
+  document.getElementById('sched-confirm-btn').onclick = () => {
+    const dateVal = document.getElementById('sched-date-input').value;
+    const timeVal = document.getElementById('sched-time-input').value;
+    if (!dateVal || !timeVal) return;
+
+    const datetime = new Date(`${dateVal}T${timeVal}`).toISOString();
+    scheduledSessions.push({ datetime, duration: selectedDur, label: `${selectedDur}m session` });
+    saveScheduled();
+    updateScheduledGoal();
+
+    // Refresh list
+    const list = document.getElementById('sched-sessions-list');
+    if (!list) {
+      // Insert list element after sched container if not present
+      const btnCont = document.querySelector('.sched_btns_container');
+      if (btnCont) {
+        const newList = buildEl('div', 'sched_sessions_container', '');
+        newList.id = 'sched-sessions-list';
+        btnCont.parentNode.insertBefore(newList, btnCont);
+        renderScheduledSessions(newList);
+      }
+    } else {
+      renderScheduledSessions(list);
+    }
+
+    const cnt = document.getElementById('sched-count');
+    if (cnt) cnt.textContent = scheduledSessions.length;
+
+    modal.style.display = 'none';
+
+    // Show notification
+    chrome.runtime.sendMessage({
+      type: "testNotification",
+      text: `Session scheduled for ${new Date(datetime).toLocaleString()}!`
+    });
+  };
+}
+
+// ── Idle Detection Section ────────────────────────────────────────────────────
+function buildIdleSection() {
+  const frag = document.createDocumentFragment();
+
+  frag.appendChild(buildEl('div', 'detection_container', `
+    <img src="icons/idle.png" class="detection_icon">
+    <span class="detection_text">Idle detection</span>
+  `));
+
+  const lower = buildEl('div', 'lower_detection_container');
+  const inner = buildEl('div', 'inner_detection_container');
+
+  const circle = buildEl('div', 'status-circle');
+  circle.id = 'idle-status-circle';
+
+  const actCont = buildEl('div', 'active_container');
+  const actText = buildEl('span', 'active_text', 'Active Now -');
+  actText.id = 'idle-status-text';
+
+  const actMsg = buildEl('span', 'active_msg', ' no idle detected in the last 0 minutes.');
+  actMsg.id = 'idle-status-msg';
+
+  actCont.appendChild(actText);
+  actCont.appendChild(actMsg);
+  inner.appendChild(circle);
+  inner.appendChild(actCont);
+  lower.appendChild(inner);
+  frag.appendChild(lower);
+  return frag;
+}
+
+function startIdleDetection() {
+  clearInterval(idleInterval);
+
+  // Listen for user activity
+  document.addEventListener('mousemove',  onActivity, { passive: true });
+  document.addEventListener('keydown',    onActivity, { passive: true });
+  document.addEventListener('mousedown',  onActivity, { passive: true });
+  document.addEventListener('touchstart', onActivity, { passive: true });
+
+  idleInterval = setInterval(updateIdleDisplay, 5000);
+  updateIdleDisplay(); // immediate first update
+}
+
+function onActivity() {
+  lastActivityTime = Date.now();
+  updateIdleDisplay();
+}
+
+function updateIdleDisplay() {
+  const circle  = document.getElementById('idle-status-circle');
+  const textEl  = document.getElementById('idle-status-text');
+  const msgEl   = document.getElementById('idle-status-msg');
+  if (!circle || !textEl || !msgEl) return;
+
+  const elapsed       = Math.floor((Date.now() - lastActivityTime) / 1000);
+  const isActiveNow   = elapsed < 60;
+
+  circle.className = 'status-circle' + (isActiveNow ? ' active' : '');
+
+  if (isActiveNow) {
+    textEl.textContent = 'Active Now -';
+    const mins = Math.floor(elapsed / 60);
+    msgEl.textContent  = ` no idle detected in the last ${Math.max(1, Math.ceil(elapsed / 60))} minute${elapsed >= 120 ? 's' : ''}.`;
+  } else {
+    const mins = Math.floor(elapsed / 60);
+    const hrs  = Math.floor(mins / 60);
+    const display = hrs > 0 ? `${hrs}h ${mins % 60}m` : `${mins}m`;
+    textEl.textContent = 'Idle -';
+    msgEl.textContent  = ` idle for ${display}. Take a break or come back when ready.`;
+  }
+}
+
+// ── Handle "Start new session" from detail view ────────────────────────────────
+function handleNewSessionFromDetail(bodyWrapper) {
+  saveState();
+  // Rebuild main view and show duration picker
+  bodyWrapper.innerHTML = '';
+  buildMainViewDOM(bodyWrapper);
+  initButtonHandlers();
+  updateCompactTimerDisplay();
+  updateSessionOutputDisplay();
+
+  // Show duration picker
+  const picker = document.getElementById('duration-picker');
+  if (picker) picker.style.display = '';
+
+  // Wire up dur buttons
+  document.querySelectorAll('.dur-btn').forEach(b => {
+    b.addEventListener('click', () => {
+      document.querySelectorAll('.dur-btn').forEach(x => x.classList.remove('selected'));
+      b.classList.add('selected');
+
+      const mins = parseInt(b.dataset.mins);
+      sessionDuration        = mins * 60;
+      originalSessionDuration = sessionDuration;
+      isQuickieMode           = true;
+      hasSelection            = true;
+      updateCompactTimerDisplay();
+      saveState();
+
+      // Hide picker and start
+      if (picker) picker.style.display = 'none';
+      startSession();
+    });
+  });
+}
+
+// ── Utility DOM builder ───────────────────────────────────────────────────────
+function buildEl(tag, className, html) {
+  const el = document.createElement(tag);
+  if (className) el.className = className;
+  if (html !== undefined) el.innerHTML = html;
+  return el;
+}
+
+// ── Initialisation ────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  loadState(() => {
+    // Restore compact state
+    if (isCompact) {
+      const bw = document.getElementById('body-wrapper');
+      if (bw) bw.style.display = 'none';
+      const img = document.getElementById('compact-icon-img');
+      if (img) img.src = 'icons/down.png';
+    }
+
+    // Update header streak
+    updateHeaderStreak();
+
+    // Update timer display
+    updateCompactTimerDisplay();
+    updateSessionOutputDisplay();
+    updateHeaderProgressBar();
+
+    // Determine goal from scheduled sessions
+    updateScheduledGoal();
+
+    // Init handlers
+    initButtonHandlers();
+
+    // If session was running, restore running state (visual only — interval was lost)
+    if (timerInterval === null && sessionDuration > 0 && isOnBreak === false) {
+      // Session was mid-run when popup closed; show break/stop and re-start
+      if (hasSelection && sessionDuration > 0) {
+        showBreakStopButtons();
+      }
+    }
+
+    if (isOnBreak && sessionBreak > 0) {
+      showBreakStopButtons();
+    }
+
+    // Compact btn icon
+    const img = document.getElementById('compact-icon-img');
+    if (img) img.src = isCompact ? 'icons/down.png' : 'icons/up.png';
+
+    // Compact btn click
+    document.getElementById('compact-btn')?.addEventListener('click', toggleCompactView);
+  });
+});

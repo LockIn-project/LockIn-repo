@@ -1,26 +1,39 @@
 {
-    "manifest_version": 3,
-    "name": "LockIn",
-    "version": "1.0",
-    "description": "Track browser activity, detect idle time, and help users become more productive",
-    "icons": {
-        "48": "icons/icon48.png"
-    },
-    "background": {
-        "service_worker": "background.js"
-    },
-    "action": {
-        "default_popup": "popup.html",
-        "default_icon": "icons/icon48.png"
-    },
-    "permissions": [
-        "tabs",
-        "storage",
-        "notifications",
-        "activeTab",
-        "scripting",
-        "alarms",
-        "idle",
-        "history"
-    ]
+  "manifest_version": 3,
+  "name": "LockIn",
+  "version": "1.1",
+  "description": "Track browser activity, detect idle time, and help users become more productive",
+  "icons": {
+    "48": "icons/icon48.png"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": "icons/icon48.png"
+  },
+  "permissions": [
+    "tabs",
+    "storage",
+    "notifications",
+    "activeTab",
+    "scripting",
+    "alarms",
+    "idle",
+    "history",
+    "declarativeNetRequest",
+    "declarativeNetRequestWithHostAccess"
+  ],
+  "host_permissions": [
+    "*://*.facebook.com/*",
+    "*://*.instagram.com/*",
+    "*://*.twitter.com/*",
+    "*://*.x.com/*",
+    "*://*.tiktok.com/*",
+    "*://*.youtube.com/*"
+  ],
+  "declarative_net_request": {
+    "rule_resources": []
+  }
 }
