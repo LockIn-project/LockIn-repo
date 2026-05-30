@@ -1,10 +1,11 @@
 {
   "manifest_version": 3,
   "name": "LockIn",
-  "version": "1.1",
-  "description": "Track browser activity, detect idle time, and help users become more productive",
+  "version": "2.0",
+  "description": "Track browser activity, detect idle time, and help users become more productive with AI-powered suggestions.",
   "icons": {
-    "48": "icons/icon48.png"
+    "48": "icons/icon48.png",
+    "128": "icons/icon48.png"
   },
   "background": {
     "service_worker": "background.js"
@@ -23,7 +24,8 @@
     "idle",
     "history",
     "declarativeNetRequest",
-    "declarativeNetRequestWithHostAccess"
+    "declarativeNetRequestWithHostAccess",
+    "declarativeNetRequestFeedback"
   ],
   "host_permissions": [
     "*://*.facebook.com/*",
@@ -34,6 +36,12 @@
     "*://*.youtube.com/*"
   ],
   "declarative_net_request": {
-    "rule_resources": []
+    "rule_resources": [
+      {
+        "id": "ruleset_focus",
+        "enabled": false,
+        "path": "rules.json"
+      }
+    ]
   }
 }

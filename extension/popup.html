@@ -10,42 +10,37 @@
 
 <section class="popup-section">
 
-  <!-- ── HEADER ── -->
+  <!-- ── HEADER (always visible) ── -->
   <div class="header-compact-container">
     <div class="header-text-streak">
       <div class="header-subheader-container">
         <span class="header-compact-text">LockIn</span>
-        <span class="subheader-compact-text">Stay Lock in and productive</span>
+        <span class="subheader-compact-text">Stay Locked in and productive</span>
       </div>
-
       <div class="header-right">
-        <div>
-          <span class="streak-header" id="streak-header">
-            <img src="icons/fire.png" class="streak-icon" id="streak-fire-icon">
-            <span class="streak-count" id="streak-count">0</span>
-          </span>
-        </div>
-        <!-- Compact toggle button lives here (injected via JS) -->
+        <span class="streak-header" id="streak-header">
+          <img src="icons/fire.png" class="streak-icon">
+          <span class="streak-count" id="streak-count">0</span>
+        </span>
         <div class="compact-container" id="compact-container">
-          <button class="compact-btn" id="compact-btn" title="Compact view">
+          <button class="compact-btn" id="compact-btn" title="Toggle compact view">
             <img src="icons/up.png" class="compact_icon" id="compact-icon-img">
           </button>
         </div>
       </div>
     </div>
-
     <div class="progress-bar-wrapper">
       <div class="progress-container">
         <div class="progress-bar" id="header-progress-bar"></div>
       </div>
       <div class="bar-percent-container">
-        <span class="progress-text">Progress Today</span>
+        <span class="progress-text">Session Progress</span>
         <span class="progress-percent" id="header-progress-percent">0%</span>
       </div>
     </div>
   </div>
 
-  <!-- ── BODY (compact / main view) ── -->
+  <!-- ── BODY (hidden when compact) ── -->
   <div class="body-wrapper" id="body-wrapper">
     <div class="body-container" id="main-view">
 
@@ -62,20 +57,18 @@
         <div class="today-container">
           <span class="today-text">CURRENT</span>
           <span class="today-time" id="current-time">
-            <span class="hour">0h</span>
-            <span class="mins">0m</span>
+            <span>0h</span><span>0m</span>
           </span>
         </div>
         <div class="goal-container">
-          <span class="goal-text">DAILY GOAL</span>
+          <span class="goal-text">GOAL</span>
           <span class="goal-time" id="goal-time">
-            <span class="hour">0h</span>
-            <span class="mins">0m</span>
+            <span>0h</span><span>0m</span>
           </span>
         </div>
       </div>
 
-      <!-- Session output (countdown during active session) -->
+      <!-- Session output countdown -->
       <div class="session-output" id="session-output"></div>
 
       <!-- Quick session buttons -->
@@ -99,18 +92,7 @@
         </button>
       </div>
 
-      <!-- Duration picker (hidden, revealed by "Start new session") -->
-      <div class="duration-picker" id="duration-picker" style="display:none;">
-        <span class="duration-picker-label">Choose session duration:</span>
-        <div class="duration-btns">
-          <button class="dur-btn" data-mins="15">15m</button>
-          <button class="dur-btn" data-mins="30">30m</button>
-          <button class="dur-btn" data-mins="45">45m</button>
-          <button class="dur-btn" data-mins="60">60m</button>
-        </div>
-      </div>
-
-      <!-- Start / Break / Stop -->
+      <!-- Start / Break / Stop buttons -->
       <div class="start-session-container" id="start-session-container">
         <button class="start-btn" id="start-btn">
           <img src="icons/play2.png" class="start-icon">
@@ -132,12 +114,51 @@
 </section>
 
 <!-- ── CONFIRMATION OVERLAY ── -->
-<div class="confirmation-overlay" id="confirmation-overlay">
+<div class="confirmation-overlay" id="confirmation-overlay" style="display:none;">
   <div class="confirmation-dialog">
     <span class="confirmation-text" id="confirmation-text"></span>
     <div class="confirmation-buttons">
       <button class="confirmation-btn yes-btn" id="confirm-yes">Yes</button>
       <button class="confirmation-btn no-btn" id="confirm-no">No</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── START NEW SESSION OVERLAY (expanded view only) ── -->
+<div class="session-overlay" id="session-overlay" style="display:none;">
+  <div class="session-overlay-dialog">
+    <div class="session-overlay-header">
+      <span class="session-overlay-title">New Session</span>
+      <button class="modal-close" id="session-overlay-close">✕</button>
+    </div>
+    <div class="session-overlay-body">
+      <label class="modal-label">Session Duration (minutes)</label>
+      <div class="sched-dur-btns" id="new-session-dur-btns">
+        <button class="sched-dur-btn active" data-dur="15">15m</button>
+        <button class="sched-dur-btn" data-dur="30">30m</button>
+        <button class="sched-dur-btn" data-dur="45">45m</button>
+        <button class="sched-dur-btn" data-dur="60">60m</button>
+        <button class="sched-dur-btn" data-dur="90">90m</button>
+        <button class="sched-dur-btn" data-dur="120">2h</button>
+      </div>
+      <label class="modal-label" style="margin-top:10px;">Break every</label>
+      <div class="sched-dur-btns" id="new-session-break-freq-btns">
+        <button class="sched-dur-btn active" data-freq="0">None</button>
+        <button class="sched-dur-btn" data-freq="15">15m</button>
+        <button class="sched-dur-btn" data-freq="25">25m</button>
+        <button class="sched-dur-btn" data-freq="30">30m</button>
+        <button class="sched-dur-btn" data-freq="45">45m</button>
+      </div>
+      <label class="modal-label" style="margin-top:10px;">Break duration</label>
+      <div class="sched-dur-btns" id="new-session-break-dur-btns">
+        <button class="sched-dur-btn active" data-brkdur="5">5m</button>
+        <button class="sched-dur-btn" data-brkdur="10">10m</button>
+        <button class="sched-dur-btn" data-brkdur="15">15m</button>
+      </div>
+    </div>
+    <div class="session-overlay-footer">
+      <button class="overlay-stop-btn" id="session-overlay-stop">Stop</button>
+      <button class="overlay-start-btn" id="session-overlay-start">Start</button>
     </div>
   </div>
 </div>
@@ -150,22 +171,35 @@
       <button class="modal-close" id="schedule-modal-close">✕</button>
     </div>
     <div class="modal-body" id="schedule-modal-body">
-      <!-- Step 1: Calendar -->
+      <!-- Step 1: Date -->
       <div id="sched-step-1">
         <label class="modal-label">Pick a date:</label>
         <input type="date" id="sched-date-input" class="modal-input">
         <button class="modal-btn" id="sched-date-confirm">Next →</button>
       </div>
-      <!-- Step 2: Time + Duration -->
+      <!-- Step 2: Start / End time -->
       <div id="sched-step-2" style="display:none;">
-        <label class="modal-label">Pick a time:</label>
-        <input type="time" id="sched-time-input" class="modal-input">
-        <label class="modal-label" style="margin-top:10px;">Duration (minutes):</label>
-        <div class="sched-dur-btns">
-          <button class="sched-dur-btn active" data-dur="15">15m</button>
-          <button class="sched-dur-btn" data-dur="30">30m</button>
-          <button class="sched-dur-btn" data-dur="45">45m</button>
-          <button class="sched-dur-btn" data-dur="60">60m</button>
+        <label class="modal-label">Start time:</label>
+        <input type="time" id="sched-start-time" class="modal-input">
+        <label class="modal-label" style="margin-top:8px;">End time:</label>
+        <input type="time" id="sched-end-time" class="modal-input">
+        <button class="modal-btn" id="sched-time-confirm">Next →</button>
+      </div>
+      <!-- Step 3: Break settings -->
+      <div id="sched-step-3" style="display:none;">
+        <label class="modal-label">Break frequency:</label>
+        <div class="sched-dur-btns" id="sched-break-freq-btns">
+          <button class="sched-dur-btn active" data-freq="0">None</button>
+          <button class="sched-dur-btn" data-freq="15">15m</button>
+          <button class="sched-dur-btn" data-freq="25">25m</button>
+          <button class="sched-dur-btn" data-freq="30">30m</button>
+          <button class="sched-dur-btn" data-freq="45">45m</button>
+        </div>
+        <label class="modal-label" style="margin-top:8px;">Break duration:</label>
+        <div class="sched-dur-btns" id="sched-break-dur-btns">
+          <button class="sched-dur-btn active" data-brkdur="5">5m</button>
+          <button class="sched-dur-btn" data-brkdur="10">10m</button>
+          <button class="sched-dur-btn" data-brkdur="15">15m</button>
         </div>
         <button class="modal-btn" id="sched-confirm-btn">Confirm Session</button>
       </div>
