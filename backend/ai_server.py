@@ -9,6 +9,7 @@ Run:
   uvicorn ai_server:app --reload --port 8000
 
 The Chrome extension calls POST /suggest-sessions with session history JSON.
+Uses Gemini 1.5 Flash model.
 """
 
 import os
@@ -19,14 +20,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 # ── Gemini API call here ───────────────────────────────────────────────────────
-import google.genai as genai
+import google.generativeai as genai
 
 # Configure Gemini API — replace with your actual key or set GEMINI_API_KEY env var
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "YOUR_API_KEY_HERE")
 genai.configure(api_key=GEMINI_API_KEY)
 
-# Use Gemini 2.5 Flash model
-model = genai.GenerativeModel("gemini-2.5-flash")  # <-- Gemini API call here
+# Use Gemini 1.5 Flash model
+model = genai.GenerativeModel("gemini-1.5-flash")  # <-- Gemini API call here
 
 
 # ── FastAPI app ───────────────────────────────────────────────────────────────
@@ -118,7 +119,7 @@ def parse_gemini_response(text: str) -> List[dict]:
 async def suggest_sessions(request: SuggestRequest):
     """
     Accepts session history from the LockIn Chrome extension and returns
-    AI-powered session suggestions using Gemini 2.5 Flash.
+    AI-powered session suggestions using Gemini 1.5 Flash.
     """
     history = request.history
 
@@ -130,7 +131,7 @@ async def suggest_sessions(request: SuggestRequest):
 
     # Serialize history for the prompt
     history_json = json.dumps(
-        [h.dict() for h in history],
+        [h.model_dump() for h in history],
         default=str,
         indent=2
     )
@@ -203,7 +204,7 @@ Session history ({len(history)} sessions):
 # ── Health check ───────────────────────────────────────────────────────────────
 @app.get("/health")
 async def health():
-    return {"status": "ok", "model": "gemini-2.5-flash"}
+    return {"status": "ok", "model": "gemini-1.5-flash"}
 
 
 # ── Run directly ───────────────────────────────────────────────────────────────

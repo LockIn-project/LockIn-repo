@@ -1103,7 +1103,7 @@ function generateLocalSuggestions(history) {
     {
       title: `${Math.round(avgDuration * 1.2)}m Deep Work`,
       startTime: `${String((bestHour + 1) % 24).padStart(2,'0')}:00`,
-      endTime: `${String((bestHour + 1 + Math.ceil(avgDuration * 1.2 / 60)) % 24).padStart(2,'0')}:00`,
+      endTime: `${String(((bestHour + 1 + Math.ceil(avgDuration * 1.2 / 60)) % 24)).padStart(2,'0')}:00`,
       breakFrequency: 30,
       breakDuration: 10,
       detail: `Stretch session with longer breaks. Good for focused deep work.`
