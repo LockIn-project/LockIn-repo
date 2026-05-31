@@ -13,29 +13,24 @@ let breakFreqMinutes        = 0;
 let breakDurationMinutes    = 5;
 let breaksTakenThisSession  = 0;
 
-// Background session tracking
 let bgSessionStartTime      = null;
-let bgSessionDuration       = 0; // seconds
+let bgSessionDuration       = 0;
 
-// Streak
 let streakDays        = 0;
 let lastSessionDate   = null;
 
-// Focus toggles
 let focusToggles = { facebook: false, instagram: false, twitter: false, tiktok: false, youtube: false };
 
-// Scheduled sessions
 let scheduledSessions = [];
 
-// AI history
 let sessionHistory = [];
 
-// Idle state from background
 let idleMinutesFromBg = 0;
 let idleStateFromBg   = 'active';
 
-// Scheduled goal for progress bar
-let scheduledGoalDuration = 0; // minutes
+let scheduledGoalDuration = 0;
+
+let sessionGoal = '';
 
 const MILESTONES = [3, 7, 10, 14, 30];
 
@@ -72,7 +67,7 @@ function saveState() {
     sessionDuration, sessionBreak, hasSelection,
     originalSessionDuration, isOnBreak, isCompact,
     breakFreqMinutes, breakDurationMinutes, breaksTakenThisSession,
-    bgSessionStartTime, bgSessionDuration
+    bgSessionStartTime, bgSessionDuration, sessionGoal
   };
   chrome.runtime.sendMessage({ type: 'saveState', state });
 }
@@ -101,18 +96,19 @@ function loadState(callback) {
     breaksTakenThisSession  = s.breaksTakenThisSession  ?? 0;
     bgSessionStartTime      = s.bgSessionStartTime      ?? null;
     bgSessionDuration       = s.bgSessionDuration       ?? 0;
+    sessionGoal             = s.sessionGoal             ?? '';
 
     const streak = response.streak || { streakDays: 0, lastSessionDate: null };
     streakDays      = streak.streakDays;
     lastSessionDate = streak.lastSessionDate;
 
-     focusToggles    = { ...{ facebook: false, instagram: false, twitter: false, tiktok: false, youtube: false }, ...(response.focusToggles || {}) };
+    focusToggles      = { ...{ facebook: false, instagram: false, twitter: false, tiktok: false, youtube: false }, ...(response.focusToggles || {}) };
     scheduledSessions = response.scheduled  || [];
     sessionHistory    = response.history    || [];
     idleMinutesFromBg = response.idleMinutes || 0;
     idleStateFromBg   = response.idleState   || 'active';
+    scheduledGoalDuration = response.scheduledGoalDuration || 0;
 
-    // Sync with background session if running
     if (response.activeSession && response.activeSession.startTime) {
       const sess    = response.activeSession;
       const elapsed = Math.floor((Date.now() - sess.startTime) / 1000);
@@ -140,7 +136,17 @@ function updateHeaderStreak() {
   const header = document.getElementById('streak-header');
   if (header) {
     const next = getNextMilestone(streakDays);
-    header.classList.toggle('milestone', MILESTONES.includes(streakDays) || streakDays >= next);
+    const isMilestone = MILESTONES.includes(streakDays) || streakDays >= next;
+    header.classList.toggle('milestone', isMilestone);
+
+    const achievementBadge = header.querySelector('.achievement-badge');
+    if (isMilestone && !achievementBadge) {
+      const badge = buildEl('span', 'achievement-badge', '<img src="icons/fire.png" class="fire-icon"><span class="badge-text">🔥</span>');
+      header.appendChild(badge);
+    }
+    if (!isMilestone && achievementBadge) {
+      achievementBadge.remove();
+    }
   }
   updateHeaderProgressBar();
 }
@@ -205,11 +211,15 @@ function buildMainViewDOM(wrapper) {
       <div class="today-goal-wrapper">
         <div class="today-container">
           <span class="today-text">CURRENT</span>
-          <span class="today-time" id="current-time"><span>0h</span><span>0m</span></span>
+          <span class="today-time" id="current-time">
+            <span>0h</span><span>0m</span>
+          </span>
         </div>
         <div class="goal-container">
           <span class="goal-text">GOAL</span>
-          <span class="goal-time" id="goal-time"><span>0h</span><span>0m</span></span>
+          <span class="goal-time" id="goal-time">
+            <span>0h</span><span>0m</span>
+          </span>
         </div>
       </div>
       <div class="session-output" id="session-output"></div>
@@ -248,7 +258,7 @@ function buildMainViewDOM(wrapper) {
   `;
 }
 
-// ── Timer display ─────────────────────────────────────────────────────────────
+// ── Display helpers ───────────────────────────────────────────────────────────
 function updateCompactTimerDisplay() {
   const currentTimeEl = document.getElementById('current-time');
   const goalTimeEl    = document.getElementById('goal-time');
@@ -270,6 +280,12 @@ function updateCompactTimerDisplay() {
 function updateSessionOutputDisplay() {
   const output = document.getElementById('session-output');
   if (!output) return;
+
+  const existingContinue = output.querySelector('.continue-btn');
+  if (existingContinue) {
+    existingContinue.remove();
+  }
+
   output.innerHTML = '';
 
   if (isOnBreak && sessionBreak > 0) {
@@ -278,6 +294,9 @@ function updateSessionOutputDisplay() {
       <span class="break-text">REST:</span>
       <span class="break-time">${formatTime(sessionBreak)}</span>
     `;
+    const continueBtn = buildEl('button', 'continue-btn', 'Continue');
+    continueBtn.onclick = resumeSession;
+    wrapper.appendChild(continueBtn);
     output.appendChild(wrapper);
     return;
   }
@@ -291,7 +310,7 @@ function updateSessionOutputDisplay() {
 }
 
 // ── Session control ───────────────────────────────────────────────────────────
-function startSession(overrideDuration, overrideBreakFreq, overrideBreakDur) {
+function startSession(overrideDuration, overrideBreakFreq, overrideBreakDur, goal) {
   if (overrideDuration) {
     sessionDuration         = overrideDuration * 60;
     originalSessionDuration = sessionDuration;
@@ -303,15 +322,15 @@ function startSession(overrideDuration, overrideBreakFreq, overrideBreakDur) {
 
   breaksTakenThisSession = 0;
 
-  // Tell background to track the session
   chrome.runtime.sendMessage({
     type: 'startSession',
-    durationSeconds:     sessionDuration,
-    breakFreqMinutes:    breakFreqMinutes,
+    durationSeconds:      sessionDuration,
+    breakFreqMinutes:     breakFreqMinutes,
     breakDurationMinutes: breakDurationMinutes,
-    focusSites:          focusToggles,
-    scheduledStart:      new Date().toISOString(),
-    scheduledEnd:        new Date(Date.now() + sessionDuration * 1000).toISOString()
+    focusSites:           focusToggles,
+    scheduledStart:       new Date().toISOString(),
+    scheduledEnd:         new Date(Date.now() + sessionDuration * 1000).toISOString(),
+    goal:                 goal || sessionGoal
   }, (res) => {
     if (res && res.startTime) {
       bgSessionStartTime = res.startTime;
@@ -332,6 +351,7 @@ function startSession(overrideDuration, overrideBreakFreq, overrideBreakDur) {
         updateCompactTimerDisplay();
         showBreakStopButtons();
         setMotivationText('Break ended! Let\'s get back to it.');
+        playBreakEndSound();
       } else {
         onSessionComplete();
       }
@@ -358,18 +378,26 @@ function onSessionComplete() {
     if (res && res.record) {
       sessionHistory.push(res.record);
     }
+    updateScheduledGoal();
   });
   showStartButton();
   setMotivationText('Session complete! Great work 🎉');
   resetToDefault();
 }
 
+// ── FIX: takeBreak no longer overwrites originalSessionDuration ───────────────
+// Previously, `originalSessionDuration = sessionDuration` was written here,
+// which stomped the true session goal with whatever time remained at break-start.
+// Now we simply leave originalSessionDuration alone — it was already set to the
+// full session length when the session started (in startSession / initButtonHandlers
+// / openSessionOverlay), and that value is what we want to restore after the break.
 function takeBreak() {
   clearInterval(timerInterval);
-  timerInterval           = null;
-  isOnBreak               = true;
-  originalSessionDuration = sessionDuration;
-  sessionBreak            = (breakDurationMinutes || 5) * 60;
+  timerInterval  = null;
+  isOnBreak      = true;
+  // ← REMOVED: originalSessionDuration = sessionDuration;
+  //   (this was the bug: it overwrote the goal with remaining time)
+  sessionBreak   = (breakDurationMinutes || 5) * 60;
   breaksTakenThisSession++;
 
   timerInterval = setInterval(() => {
@@ -378,9 +406,10 @@ function takeBreak() {
       clearInterval(timerInterval);
       timerInterval   = null;
       isOnBreak       = false;
-      sessionDuration = originalSessionDuration;
+      sessionDuration = originalSessionDuration; // restores the true session goal
       updateCompactTimerDisplay();
-      showBreakStopButtons();
+      updateSessionOutputDisplay();
+      playBreakEndSound();
       const breakBtn = document.getElementById('break-btn');
       if (breakBtn) {
         breakBtn.innerHTML = `<img src="icons/break.png" class="stop-break-icon"> Break`;
@@ -403,26 +432,29 @@ function takeBreak() {
 
 function resumeSession() {
   clearInterval(timerInterval);
-  timerInterval = null;
-  isOnBreak     = false;
-  sessionDuration = originalSessionDuration;
+  timerInterval   = null;
+  isOnBreak       = false;
+  sessionDuration = originalSessionDuration; // restores the true session goal
 
-  setMotivationText("Let's get back to work!");
-  updateCompactTimerDisplay();
-  showBreakStopButtons();
-
-  timerInterval = setInterval(() => {
-    sessionDuration--;
-    if (sessionDuration <= 0) {
-      clearInterval(timerInterval);
-      timerInterval = null;
-      onSessionComplete();
-    }
+  setTimeout(() => {
+    setMotivationText("Let's get back to work!");
     updateCompactTimerDisplay();
     updateSessionOutputDisplay();
-    updateHeaderProgressBar();
-    saveState();
-  }, 1000);
+    showBreakStopButtons();
+
+    timerInterval = setInterval(() => {
+      sessionDuration--;
+      if (sessionDuration <= 0) {
+        clearInterval(timerInterval);
+        timerInterval = null;
+        onSessionComplete();
+      }
+      updateCompactTimerDisplay();
+      updateSessionOutputDisplay();
+      updateHeaderProgressBar();
+      saveState();
+    }, 1000);
+  }, 100);
 
   const breakBtn = document.getElementById('break-btn');
   if (breakBtn) {
@@ -440,6 +472,7 @@ function stopSession() {
   hasSelection            = false;
   originalSessionDuration = 0;
   bgSessionStartTime      = null;
+  bgSessionDuration       = 0;  // FIX: reset so updateHeaderProgressBar() shows 0%
 
   chrome.runtime.sendMessage({ type: 'stopSession' });
 
@@ -471,10 +504,24 @@ function resetToDefault() {
     .forEach(b => b.classList.remove('min-btn-selected'));
 }
 
+function playBreakEndSound() {
+  const audio = new Audio('icons/notify.mp3');
+  audio.play().catch(() => {});
+}
+
 // ── Button helpers ────────────────────────────────────────────────────────────
 function showBreakStopButtons() {
   const container = document.getElementById('start-session-container');
   if (!container) return;
+
+  const isRunning = timerInterval && !isOnBreak;
+  const showStop  = isRunning || (isOnBreak && sessionBreak > 0);
+
+  if (!showStop) {
+    showStartButton();
+    return;
+  }
+
   container.innerHTML = `
     <div class="break_stop_container">
       <div class="btns-stop-break">
@@ -489,7 +536,15 @@ function showBreakStopButtons() {
       </div>
     </div>
   `;
-  document.getElementById('break-btn').addEventListener('click', takeBreak);
+
+  const breakBtn = document.getElementById('break-btn');
+  if (breakBtn) {
+    breakBtn.onclick = takeBreak;
+    if (isOnBreak) {
+      breakBtn.innerHTML = `<img src="icons/break.png" class="stop-break-icon"> Continue`;
+      breakBtn.onclick   = resumeSession;
+    }
+  }
   document.getElementById('stop-btn').addEventListener('click', stopSession);
 }
 
@@ -520,9 +575,9 @@ function showConfirmOverlay(message, onConfirm, onCancel) {
   text.textContent      = message;
   overlay.style.display = 'flex';
 
-  const cleanup    = () => { yesBtn.removeEventListener('click', handleYes); noBtn.removeEventListener('click', handleNo); };
-  const handleYes  = () => { overlay.style.display = 'none'; if (onConfirm) onConfirm(); cleanup(); };
-  const handleNo   = () => { overlay.style.display = 'none'; if (onCancel) onCancel(); cleanup(); };
+  const cleanup   = () => { yesBtn.removeEventListener('click', handleYes); noBtn.removeEventListener('click', handleNo); };
+  const handleYes = () => { overlay.style.display = 'none'; if (onConfirm) onConfirm(); cleanup(); };
+  const handleNo  = () => { overlay.style.display = 'none'; if (onCancel)  onCancel();  cleanup(); };
 
   yesBtn.addEventListener('click', handleYes);
   noBtn.addEventListener('click', handleNo);
@@ -576,7 +631,6 @@ function initButtonHandlers() {
     });
   });
 
-  // Restore selected button
   if (sessionDuration > 0 && !timerInterval) {
     const mins = Math.floor(originalSessionDuration / 60);
     const map  = { 15: 'fifteenMin-btn', 30: 'thirtyMin-btn', 45: 'fortyfiveMin-btn', 60: 'sixtyMin-btn' };
@@ -603,8 +657,7 @@ function buildExtensionDetailView(bodyWrapper) {
   bodyWrapper.innerHTML = '';
   const section = buildEl('div', 'extension-section');
 
-  // Back button row
-  const backRow = buildEl('div', '', `
+  const backRow = buildEl('div', `
     <button id="back-to-main" style="background:none;border:none;cursor:pointer;
       padding:10px 17px;font-family:system-ui;font-size:12px;color:#547792;
       display:flex;align-items:center;gap:4px;">
@@ -613,10 +666,8 @@ function buildExtensionDetailView(bodyWrapper) {
   `);
   section.appendChild(backRow);
 
-  // ── Streak ──
   section.appendChild(buildStreakSection());
 
-  // ── Focus ──
   const focusHeader = buildEl('div', 'focus_header_container');
   focusHeader.innerHTML = `
     <div class="icon_text_focus">
@@ -625,22 +676,18 @@ function buildExtensionDetailView(bodyWrapper) {
     </div>
   `;
   const statusSpan = buildEl('span', 'focus_status' + (isAnyFocusActive() ? ' active' : ''));
-  statusSpan.id        = 'focus-status-text';
+  statusSpan.id          = 'focus-status-text';
   statusSpan.textContent = isAnyFocusActive() ? 'Active' : 'Inactive';
   focusHeader.appendChild(statusSpan);
   section.appendChild(focusHeader);
   section.appendChild(buildFocusBody());
 
-  // ── Schedule ──
   section.appendChild(buildScheduleSection());
 
-  // ── AI Suggestions ──
   section.appendChild(buildAISuggestionsSection());
 
-  // ── Idle Detection ──
   section.appendChild(buildIdleSection());
 
-  // ── Footer ──
   const footer = buildEl('div', 'footer_container');
   const newBtn  = buildEl('button', 'new_sesh_btn', `<img src="icons/play2.png" class="sesh_icon"> Start new session`);
   newBtn.addEventListener('click', () => openSessionOverlay());
@@ -649,7 +696,6 @@ function buildExtensionDetailView(bodyWrapper) {
 
   bodyWrapper.appendChild(section);
 
-  // Back button
   document.getElementById('back-to-main').addEventListener('click', () => {
     saveState();
     bodyWrapper.innerHTML = '';
@@ -658,7 +704,7 @@ function buildExtensionDetailView(bodyWrapper) {
     updateCompactTimerDisplay();
     updateSessionOutputDisplay();
     updateHeaderProgressBar();
-    if (timerInterval) showBreakStopButtons();
+    if (timerInterval && !isOnBreak) showBreakStopButtons();
   });
 
   startIdleDetection();
@@ -670,16 +716,18 @@ function buildStreakSection() {
   const frag = document.createDocumentFragment();
 
   const header = buildEl('div', 'streak_container');
+  const next = getNextMilestone(streakDays);
+  const prev = getPrevMilestone(streakDays);
+  const pct  = next === prev ? 100 : Math.round(((streakDays - prev) / (next - prev)) * 100);
+  const daysToGo = Math.max(0, next - streakDays);
+  const isMilestoneAchieved = MILESTONES.includes(streakDays);
+
   header.innerHTML = `
     <img src="icons/fire.png" class="streak_icon_text">
     <span class="streak_text">Streak</span>
     <span class="streak_count" id="streak-count-detail">${streakDays} days</span>
+    ${isMilestoneAchieved ? '<span class="achievement-badge"><img src="icons/fire.png" class="fire-icon"><span class="badge-text">🔥</span></span>' : ''}
   `;
-
-  const next    = getNextMilestone(streakDays);
-  const prev    = getPrevMilestone(streakDays);
-  const pct     = next === prev ? 100 : Math.round(((streakDays - prev) / (next - prev)) * 100);
-  const daysToGo = Math.max(0, next - streakDays);
 
   const lower = buildEl('div', 'lower_streak_container');
   lower.innerHTML = `
@@ -691,8 +739,8 @@ function buildStreakSection() {
       <span id="ext-next-days">${next} days</span>
     </div>
     <div class="milestone-icons-row" id="milestone-icons-row">
-      ${MILESTONES.map(m => `
-        <div class="day_icon_wrapper">
+      ${MILESTONES.map((m, i) => `
+        <div class="day_icon_wrapper ${streakDays >= m ? 'milestone-' + m : ''}">
           <img src="icons/fire.png" class="${streakDays >= m ? 'unlocked' : ''}">
         </div>
       `).join('')}
@@ -710,9 +758,9 @@ function refreshDetailStreakSection() {
   const nextEl = document.getElementById('ext-next-days');
   if (!bar) return;
 
-  const next    = getNextMilestone(streakDays);
-  const prev    = getPrevMilestone(streakDays);
-  const pct     = next === prev ? 100 : Math.round(((streakDays - prev) / (next - prev)) * 100);
+  const next = getNextMilestone(streakDays);
+  const prev = getPrevMilestone(streakDays);
+  const pct  = next === prev ? 100 : Math.round(((streakDays - prev) / (next - prev)) * 100);
   const daysToGo = Math.max(0, next - streakDays);
 
   bar.style.width = Math.min(pct, 100) + '%';
@@ -721,6 +769,10 @@ function refreshDetailStreakSection() {
 
   document.querySelectorAll('.day_icon_wrapper img').forEach((img, i) => {
     img.classList.toggle('unlocked', streakDays >= MILESTONES[i]);
+  });
+
+  document.querySelectorAll('.day_icon_wrapper').forEach((wrapper, i) => {
+    wrapper.classList.toggle('milestone-' + MILESTONES[i], streakDays >= MILESTONES[i]);
   });
 }
 
@@ -811,7 +863,7 @@ function renderScheduledSessions(container) {
   container.innerHTML = '';
 
   scheduledSessions.forEach((sess, idx) => {
-    const item = buildEl('div', 'each_session_container');
+    const item  = buildEl('div', 'each_session_container');
     const start = new Date(sess.scheduledStart);
     const end   = new Date(sess.scheduledEnd);
     const dur   = Math.round((end - start) / 60000);
@@ -828,6 +880,7 @@ function renderScheduledSessions(container) {
     item.querySelector('.session_delete_btn').addEventListener('click', () => {
       scheduledSessions.splice(idx, 1);
       saveScheduled();
+      chrome.runtime.sendMessage({ type: 'clearScheduled', idx });
       updateScheduledGoal();
       renderScheduledSessions();
       const cnt = document.getElementById('sched-count');
@@ -847,19 +900,20 @@ function updateScheduledGoal() {
     const next = upcoming[0];
     const dur  = Math.round((new Date(next.scheduledEnd) - new Date(next.scheduledStart)) / 60000);
     scheduledGoalDuration = dur;
+    chrome.runtime.sendMessage({ type: 'saveScheduledGoal', duration: dur });
   } else {
     scheduledGoalDuration = 0;
+    chrome.runtime.sendMessage({ type: 'saveScheduledGoal', duration: 0 });
   }
   updateHeaderProgressBar();
   updateCompactTimerDisplay();
 }
 
-// ── Schedule modal ────────────────────────────────────────────────────────────
+// ── Schedule modal ───────────────────────────────────────────────────────────
 function openScheduleModal() {
   const modal = document.getElementById('schedule-modal');
   if (!modal) return;
 
-  // Reset steps
   document.getElementById('sched-step-1').style.display = '';
   document.getElementById('sched-step-2').style.display = 'none';
   document.getElementById('sched-step-3').style.display = 'none';
@@ -870,7 +924,6 @@ function openScheduleModal() {
   let selectedBreakFreq = 0;
   let selectedBreakDur  = 5;
 
-  // Reset break freq buttons
   document.querySelectorAll('#sched-break-freq-btns .sched-dur-btn').forEach(b => {
     b.classList.toggle('active', parseInt(b.dataset.freq) === 0);
     b.onclick = () => {
@@ -925,7 +978,7 @@ function openScheduleModal() {
       scheduledStart,
       scheduledEnd,
       duration,
-      breakFrequency:    selectedBreakFreq,
+      breakFrequency:       selectedBreakFreq,
       breakDurationMinutes: selectedBreakDur,
       label: `${duration}m session`
     });
@@ -933,7 +986,6 @@ function openScheduleModal() {
     saveScheduled();
     updateScheduledGoal();
 
-    // Refresh list
     let list = document.getElementById('sched-sessions-list');
     if (!list) {
       list    = buildEl('div', 'sched_sessions_container', '');
@@ -964,7 +1016,6 @@ function openSessionOverlay() {
   let selectedFreq     = 0;
   let selectedBreakDur = 5;
 
-  // Duration buttons
   document.querySelectorAll('#new-session-dur-btns .sched-dur-btn').forEach(b => {
     b.classList.toggle('active', parseInt(b.dataset.dur) === 30);
     b.onclick = () => {
@@ -974,7 +1025,6 @@ function openSessionOverlay() {
     };
   });
 
-  // Break freq buttons
   document.querySelectorAll('#new-session-break-freq-btns .sched-dur-btn').forEach(b => {
     b.classList.toggle('active', parseInt(b.dataset.freq) === 0);
     b.onclick = () => {
@@ -984,7 +1034,6 @@ function openSessionOverlay() {
     };
   });
 
-  // Break dur buttons
   document.querySelectorAll('#new-session-break-dur-btns .sched-dur-btn').forEach(b => {
     b.classList.toggle('active', parseInt(b.dataset.brkdur) === 5);
     b.onclick = () => {
@@ -1001,21 +1050,18 @@ function openSessionOverlay() {
   };
 
   document.getElementById('session-overlay-stop').onclick = () => {
-    // Stop → revert UI, keep overlay hidden, don't start
     overlay.style.display = 'none';
     stopSession();
   };
 
   document.getElementById('session-overlay-start').onclick = () => {
     overlay.style.display = 'none';
-    // Set params
     sessionDuration         = selectedDur * 60;
     originalSessionDuration = sessionDuration;
     breakFreqMinutes        = selectedFreq;
     breakDurationMinutes    = selectedBreakDur;
     hasSelection            = true;
 
-    // Collapse to compact view and start
     isCompact = true;
     chrome.storage.local.set({ lockInIsCompact: true });
     const img = document.getElementById('compact-icon-img');
@@ -1028,7 +1074,7 @@ function openSessionOverlay() {
   };
 }
 
-// ── AI Suggestions section ────────────────────────────────────────────────────
+// ── AI Suggestions section ───────────────────────────────────────────────────
 function buildAISuggestionsSection() {
   const frag = document.createDocumentFragment();
 
@@ -1055,7 +1101,6 @@ function buildAISuggestionsSection() {
 }
 
 function loadAISuggestions(container) {
-  // Send history to local AI server
   fetch('http://localhost:8000/suggest-sessions', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -1066,30 +1111,26 @@ function loadAISuggestions(container) {
     renderAISuggestions(container, data.suggestions || []);
   })
   .catch(() => {
-    // Fallback: generate simple suggestions from history data
     const suggestions = generateLocalSuggestions(sessionHistory);
     renderAISuggestions(container, suggestions);
   });
 }
 
 function generateLocalSuggestions(history) {
-  // Compute averages from history
   const totalSessions = history.length;
   const avgDuration   = Math.round(history.reduce((s, r) => s + (r.duration || 0), 0) / totalSessions);
   const avgIdle       = Math.round(history.reduce((s, r) => s + (r.idleMinutes || 0), 0) / totalSessions);
 
-  // Suggest break freq based on idle pattern
   const suggestedBreakFreq = avgIdle > 0 ? Math.max(15, Math.min(45, avgIdle + 5)) : 25;
 
-  // Determine best time from history
-  const hours = history.map(r => new Date(r.datetime).getHours());
+  const hours    = history.map(r => new Date(r.datetime).getHours());
   const bestHour = hours.sort((a,b) =>
     hours.filter(v => v === a).length - hours.filter(v => v === b).length
   ).pop() || 9;
 
   const bestHourStr = `${String(bestHour).padStart(2,'0')}:00`;
   const endHour     = bestHour + Math.ceil(avgDuration / 60);
-  const endHourStr  = `${String(endHour % 24).padStart(2,'0')}:00`;
+  const endHourStr  = `${String(endHour % 24).padStart(2,'00')}:00`;
 
   return [
     {
@@ -1103,7 +1144,7 @@ function generateLocalSuggestions(history) {
     {
       title: `${Math.round(avgDuration * 1.2)}m Deep Work`,
       startTime: `${String((bestHour + 1) % 24).padStart(2,'0')}:00`,
-      endTime: `${String(((bestHour + 1 + Math.ceil(avgDuration * 1.2 / 60)) % 24)).padStart(2,'0')}:00`,
+      endTime:   `${String(((bestHour + 1 + Math.ceil(avgDuration * 1.2 / 60)) % 24)).padStart(2,'0')}:00`,
       breakFrequency: 30,
       breakDuration: 10,
       detail: `Stretch session with longer breaks. Good for focused deep work.`
@@ -1131,7 +1172,6 @@ function renderAISuggestions(container, suggestions) {
     `;
 
     card.addEventListener('click', () => {
-      // Open session overlay pre-filled with this suggestion
       openSuggestionOverlay(s);
     });
 
@@ -1147,7 +1187,6 @@ function renderAISuggestions(container, suggestions) {
 }
 
 function openSuggestionOverlay(suggestion) {
-  // Compute duration from suggestion
   let dur = 30;
   if (suggestion.startTime && suggestion.endTime) {
     const [sh, sm] = suggestion.startTime.split(':').map(Number);
@@ -1161,7 +1200,6 @@ function openSuggestionOverlay(suggestion) {
   const overlay = document.getElementById('session-overlay');
   if (!overlay) return;
 
-  // Pre-select duration buttons
   document.querySelectorAll('#new-session-dur-btns .sched-dur-btn').forEach(b => {
     b.classList.toggle('active', parseInt(b.dataset.dur) === dur);
   });
@@ -1245,7 +1283,6 @@ function updateIdleDisplay() {
 // ── Init ──────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
   loadState(() => {
-    // Compact state
     const bw  = document.getElementById('body-wrapper');
     const img = document.getElementById('compact-icon-img');
 
@@ -1263,10 +1300,8 @@ document.addEventListener('DOMContentLoaded', () => {
     updateScheduledGoal();
     initButtonHandlers();
 
-    // If session was running, restore visuals
     if (hasSelection && sessionDuration > 0 && !isOnBreak) {
       showBreakStopButtons();
-      // Re-start local countdown (synced with background time)
       clearInterval(timerInterval);
       timerInterval = setInterval(() => {
         sessionDuration--;
@@ -1290,9 +1325,10 @@ document.addEventListener('DOMContentLoaded', () => {
           clearInterval(timerInterval);
           timerInterval   = null;
           isOnBreak       = false;
-          sessionDuration = originalSessionDuration;
+          sessionDuration = originalSessionDuration; // restores the true session goal
           updateCompactTimerDisplay();
-          showBreakStopButtons();
+          updateSessionOutputDisplay();
+          playBreakEndSound();
         }
         updateSessionOutputDisplay();
         saveState();

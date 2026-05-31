@@ -24,8 +24,7 @@
     "idle",
     "history",
     "declarativeNetRequest",
-    "declarativeNetRequestWithHostAccess",
-    "declarativeNetRequestFeedback"
+    "declarativeNetRequestWithHostAccess"
   ],
   "host_permissions": [
     "*://*.facebook.com/*",

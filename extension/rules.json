@@ -4,7 +4,7 @@
     "priority": 1,
     "action": { "type": "block" },
     "condition": {
-      "urlFilter": "*://*.facebook.com/*",
+      "urlFilter": "||facebook.com/*",
       "resourceTypes": ["main_frame", "sub_frame"]
     }
   },
@@ -13,7 +13,7 @@
     "priority": 1,
     "action": { "type": "block" },
     "condition": {
-      "urlFilter": "*://*.instagram.com/*",
+      "urlFilter": "||instagram.com/*",
       "resourceTypes": ["main_frame", "sub_frame"]
     }
   },
@@ -22,7 +22,7 @@
     "priority": 1,
     "action": { "type": "block" },
     "condition": {
-      "urlFilter": "*://*.x.com/*",
+      "urlFilter": "||x.com/*",
       "resourceTypes": ["main_frame", "sub_frame"]
     }
   },
@@ -31,7 +31,7 @@
     "priority": 1,
     "action": { "type": "block" },
     "condition": {
-      "urlFilter": "*://*.tiktok.com/*",
+      "urlFilter": "||tiktok.com/*",
       "resourceTypes": ["main_frame", "sub_frame"]
     }
   },
@@ -40,7 +40,7 @@
     "priority": 1,
     "action": { "type": "block" },
     "condition": {
-      "urlFilter": "*://*.youtube.com/*",
+      "urlFilter": "||youtube.com/*",
       "resourceTypes": ["main_frame", "sub_frame"]
     }
   }

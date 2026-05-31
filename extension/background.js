@@ -2,7 +2,6 @@
 // Handles: persistence, alarms, idle detection, focus blocking,
 //          session timers, break scheduling, AI history logging
 
-// ── Focus site rule IDs ───────────────────────────────────────────────────────
 const SITE_RULE_IDS = {
   facebook:  1,
   instagram: 2,
@@ -11,7 +10,6 @@ const SITE_RULE_IDS = {
   youtube:   5
 };
 
-// ── Apply focus toggles via declarativeNetRequest ─────────────────────────────
 function applyFocusToggles(toggles) {
   const enableIds  = [];
   const disableIds = [];
@@ -24,22 +22,14 @@ function applyFocusToggles(toggles) {
     }
   });
 
-  // Clear any enabled rulesets (safe reset)
-  chrome.declarativeNetRequest.updateEnabledRulesets(
-    { enableRulesetIds: [], disableRulesetIds: [] },
-    () => {}
-  );
-
-  // Map rule IDs to proper URL filters
   const urlMap = {
-    1: "*://*.facebook.com/*",
-    2: "*://*.instagram.com/*",
-    3: "*://*.x.com/*",
-    4: "*://*.tiktok.com/*",
-    5: "*://*.youtube.com/*"
+    1: "||facebook.com/*",
+    2: "||instagram.com/*",
+    3: "||x.com/*",
+    4: "||tiktok.com/*",
+    5: "||youtube.com/*"
   };
 
-  // Apply dynamic rules
   chrome.declarativeNetRequest.updateDynamicRules({
     removeRuleIds: [...enableIds, ...disableIds],
     addRules: enableIds.map(id => ({
@@ -58,27 +48,23 @@ function applyFocusToggles(toggles) {
   });
 }
 
-
-// ── Idle detection (background, continuous) ───────────────────────────────────
 let idleMinutesAccumulated = 0;
 let lastIdleState = 'active';
 
-chrome.idle.setDetectionInterval(60); // 1-minute granularity
+chrome.idle.setDetectionInterval(60);
 
-// Load accumulated idle minutes from storage
 chrome.storage.local.get(['lockInIdleMinutes'], (result) => {
   idleMinutesAccumulated = result.lockInIdleMinutes || 0;
 });
 
 chrome.idle.onStateChanged.addListener((newState) => {
-  chrome.storage.local.get(['lockInTimerRunning'], (res) => {
+  chrome.storage.local.get(['lockInTimerRunning', 'lockInOnBreak'], (res) => {
     const running = res.lockInTimerRunning || false;
     if (running && newState === 'idle') {
       idleMinutesAccumulated++;
       chrome.storage.local.set({ lockInIdleMinutes: idleMinutesAccumulated });
     }
     if (newState === 'active') {
-      // persist current accumulated idle on resume
       chrome.storage.local.set({ lockInIdleState: 'active' });
     }
     lastIdleState = newState;
@@ -86,13 +72,7 @@ chrome.idle.onStateChanged.addListener((newState) => {
   });
 });
 
-// ── Timer alarm tick (background countdown) ───────────────────────────────────
-// We use a 1-second interval alarm isn't feasible (minimum 1 min).
-// Instead: store startTime + totalDuration. Popup computes remaining from those.
-// Background fires alarms at: session end, each break start, each break end.
-
 function scheduleSessionAlarms(sessionData) {
-  // sessionData: { startTime, durationSeconds, breakFreqMinutes, breakDurationMinutes }
   const { startTime, durationSeconds, breakFreqMinutes, breakDurationMinutes } = sessionData;
 
   chrome.alarms.clearAll(() => {
@@ -100,10 +80,8 @@ function scheduleSessionAlarms(sessionData) {
     const endTime = startTime + durationSeconds * 1000;
     const delayToEnd = Math.max(0, (endTime - now) / 60000);
 
-    // Session complete alarm
     chrome.alarms.create('lockInSessionEnd', { delayInMinutes: delayToEnd });
 
-    // Break alarms
     if (breakFreqMinutes > 0 && breakDurationMinutes > 0) {
       let breakStart = startTime + breakFreqMinutes * 60 * 1000;
       let breakIndex = 0;
@@ -117,7 +95,6 @@ function scheduleSessionAlarms(sessionData) {
       }
     }
 
-    // Scheduled session alarms
     chrome.storage.local.get(['lockInScheduled'], (res) => {
       const scheduled = res.lockInScheduled || [];
       scheduled.forEach((sess, idx) => {
@@ -132,21 +109,20 @@ function scheduleSessionAlarms(sessionData) {
   });
 }
 
-// ── Log completed session to history ─────────────────────────────────────────
 function logSessionHistory(record) {
   chrome.storage.local.get(['lockInHistory'], (res) => {
     const history = res.lockInHistory || [];
     history.push(record);
-    // Keep last 100 sessions
     if (history.length > 100) history.splice(0, history.length - 100);
     chrome.storage.local.set({ lockInHistory: history });
   });
 }
 
-// ── Message handler ───────────────────────────────────────────────────────────
+let breakEndTime = null;
+let breakAlarmIndex = 0;
+
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
-  // ── saveState ──────────────────────────────────────────────────────────────
   if (message.type === 'saveState') {
     chrome.storage.local.set({ lockInMainState: message.state }, () => {
       sendResponse({ success: true });
@@ -154,12 +130,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
-  // ── loadState ──────────────────────────────────────────────────────────────
   if (message.type === 'loadState') {
     chrome.storage.local.get([
       'lockInMainState', 'lockInStreak', 'lockInFocusToggles',
       'lockInScheduled', 'lockInIsCompact', 'lockInHistory',
-      'lockInIdleMinutes', 'lockInIdleState', 'lockInActiveSession'
+      'lockInIdleMinutes', 'lockInIdleState', 'lockInActiveSession',
+      'lockInSessionGoal', 'lockInScheduledGoalDuration'
     ], (result) => {
       sendResponse({
         state:          result.lockInMainState      || {},
@@ -170,13 +146,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         history:        result.lockInHistory        || [],
         idleMinutes:    result.lockInIdleMinutes    || 0,
         idleState:      result.lockInIdleState      || 'active',
-        activeSession:  result.lockInActiveSession  || null
+        activeSession:  result.lockInActiveSession  || null,
+        sessionGoal:    result.lockInSessionGoal    || '',
+        scheduledGoalDuration: result.lockInScheduledGoalDuration || 0
       });
     });
     return true;
   }
 
-  // ── saveStreak ─────────────────────────────────────────────────────────────
   if (message.type === 'saveStreak') {
     chrome.storage.local.set({ lockInStreak: message.streak }, () => {
       sendResponse({ success: true });
@@ -184,7 +161,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
-  // ── saveFocusToggles ───────────────────────────────────────────────────────
   if (message.type === 'saveFocusToggles') {
     chrome.storage.local.set({ lockInFocusToggles: message.toggles }, () => {
       applyFocusToggles(message.toggles);
@@ -193,10 +169,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
-  // ── saveScheduled ──────────────────────────────────────────────────────────
   if (message.type === 'saveScheduled') {
     chrome.storage.local.set({ lockInScheduled: message.scheduled }, () => {
-      // Clear old session alarms, re-register
       chrome.alarms.getAll((alarms) => {
         const schedAlarms = alarms.filter(a => a.name.startsWith('lockInSched_'));
         schedAlarms.forEach(a => chrome.alarms.clear(a.name));
@@ -215,9 +189,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
-  // ── startSession (background timer bookkeeping) ────────────────────────────
   if (message.type === 'startSession') {
-    const { durationSeconds, breakFreqMinutes, breakDurationMinutes, focusSites, scheduledStart, scheduledEnd } = message;
+    const { durationSeconds, breakFreqMinutes, breakDurationMinutes, focusSites, scheduledStart, scheduledEnd, goal } = message;
     const startTime = Date.now();
     const activeSession = {
       startTime,
@@ -232,7 +205,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     chrome.storage.local.set({
       lockInActiveSession: activeSession,
       lockInTimerRunning: true,
-      lockInIdleMinutes: 0
+      lockInIdleMinutes: 0,
+      lockInOnBreak: false,
+      lockInSessionGoal: goal || '',
+      lockInBreakRemaining: 0
     }, () => {
       scheduleSessionAlarms({ startTime, durationSeconds, breakFreqMinutes: breakFreqMinutes || 0, breakDurationMinutes: breakDurationMinutes || 0 });
       sendResponse({ success: true, startTime });
@@ -240,70 +216,107 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
-  // ── stopSession ────────────────────────────────────────────────────────────
   if (message.type === 'stopSession') {
     chrome.alarms.clearAll();
-    chrome.storage.local.set({ lockInTimerRunning: false }, () => {
+    chrome.storage.local.set({
+      lockInTimerRunning: false,
+      lockInOnBreak: false,
+      lockInProgressPercent: 0,
+      lockInBreakRemaining: 0
+    }, () => {
       sendResponse({ success: true });
     });
     return true;
   }
 
-   // ── sessionComplete ────────────────────────────────────────────────────────
-   if (message.type === 'sessionComplete') {
-     chrome.storage.local.get(['lockInStreak', 'lockInActiveSession', 'lockInIdleMinutes', 'lockInFocusToggles'], (result) => {
-       let streak = result.lockInStreak || { streakDays: 0, lastSessionDate: null };
-       const today = new Date().toDateString();
-       if (streak.lastSessionDate !== today) {
-         streak.streakDays += 1;
-         streak.lastSessionDate = today;
-       }
+  if (message.type === 'sessionComplete') {
+    chrome.storage.local.get(['lockInStreak', 'lockInActiveSession', 'lockInIdleMinutes', 'lockInFocusToggles', 'lockInScheduled', 'lockInScheduledGoalDuration'], (result) => {
+      let streak = result.lockInStreak || { streakDays: 0, lastSessionDate: null };
+      const today = new Date().toDateString();
+      if (streak.lastSessionDate !== today) {
+        streak.streakDays += 1;
+        streak.lastSessionDate = today;
+      }
 
-       const sess   = result.lockInActiveSession || {};
-       const idleMins = result.lockInIdleMinutes || 0;
-       const totalMins = Math.round((sess.durationSeconds || 0) / 60);
+      const sess    = result.lockInActiveSession || {};
+      const idleMins = result.lockInIdleMinutes || 0;
+      const totalMins = Math.round((sess.durationSeconds || 0) / 60);
 
-       // Calculate breaks taken: totalMins / breakFreqMinutes (if breakFreqMinutes > 0)
-       const breaksTaken = sess.breakFreqMinutes > 0 ? Math.floor(totalMins / sess.breakFreqMinutes) : 0;
+      const breaksTaken = sess.breakFreqMinutes > 0 ? Math.floor(totalMins / sess.breakFreqMinutes) : 0;
 
-       // Build history record
-       const record = {
-         datetime:     new Date().toISOString(),
-         duration:     totalMins,
-         focusSites:   result.lockInFocusToggles || {},
-         streakDays:   streak.streakDays,
-         idleMinutes:  idleMins,
-         breakFrequency:   sess.breakFreqMinutes    || 0,
-         breakDuration:    sess.breakDurationMinutes || 0,
-         scheduledStart:   sess.scheduledStart || null,
-         scheduledEnd:     sess.scheduledEnd   || null,
-         actualPerformance: {
-           focusedMinutes: Math.max(0, totalMins - idleMins),
-           breaksTaken:    breaksTaken,
-           idleMinutes:    idleMins
-         }
-       };
+      const record = {
+        datetime:     new Date().toISOString(),
+        duration:     totalMins,
+        focusSites:   result.lockInFocusToggles || {},
+        streakDays:   streak.streakDays,
+        idleMinutes:  idleMins,
+        breakFrequency:   sess.breakFreqMinutes    || 0,
+        breakDuration:    sess.breakDurationMinutes || 0,
+        scheduledStart:   sess.scheduledStart || null,
+        scheduledEnd:     sess.scheduledEnd   || null,
+        actualPerformance: {
+          focusedMinutes: Math.max(0, totalMins - idleMins),
+          breaksTaken:    breaksTaken,
+          idleMinutes:    idleMins
+        }
+      };
 
-       logSessionHistory(record);
+      logSessionHistory(record);
 
-       chrome.storage.local.set({
-         lockInStreak: streak,
-         lockInTimerRunning: false,
-         lockInActiveSession: null
-       }, () => {
-         chrome.notifications.create({
-           type: 'basic',
-           iconUrl: 'icons/icon48.png',
-           title: 'LockIn – Session Complete!',
-           message: `Great work! You're on a ${streak.streakDays}-day streak 🔥`
-         });
-         sendResponse({ streak, record });
-       });
-     });
-     return true;
-   }
+      const scheduledGoal = result.lockInScheduledGoalDuration || 0;
+      const updatedScheduled = (result.lockInScheduled || []).filter(s =>
+        new Date(s.scheduledStart).getTime() > Date.now()
+      );
 
-  // ── getIdleState ───────────────────────────────────────────────────────────
+      chrome.storage.local.set({
+        lockInStreak: streak,
+        lockInTimerRunning: false,
+        lockInActiveSession: null,
+        lockInOnBreak: false,
+        lockInProgressPercent: 0,
+        lockInScheduled: updatedScheduled,
+        lockInScheduledGoalDuration: scheduledGoal
+      }, () => {
+        chrome.notifications.create({
+          type: 'basic',
+          iconUrl: 'icons/icon48.png',
+          title: 'LockIn – Session Complete!',
+          message: `Great work! You're on a ${streak.streakDays}-day streak 🔥`
+        });
+        sendResponse({ streak, record });
+      });
+    });
+    return true;
+  }
+
+  if (message.type === 'breakStarted') {
+    const { remainingSeconds, breakIndex } = message;
+    breakEndTime = Date.now() + remainingSeconds * 1000;
+    breakAlarmIndex = breakIndex;
+    chrome.storage.local.set({
+      lockInOnBreak: true,
+      lockInBreakRemaining: remainingSeconds
+    });
+    sendResponse({ success: true });
+    return true;
+  }
+
+  if (message.type === 'getBreakTime') {
+    chrome.storage.local.get(['lockInBreakRemaining', 'lockInOnBreak'], (res) => {
+      sendResponse({
+        remaining: res.lockInBreakRemaining || 0,
+        isOnBreak: res.lockInOnBreak || false
+      });
+    });
+    return true;
+  }
+
+  if (message.type === 'continueSession') {
+    chrome.storage.local.set({ lockInOnBreak: false });
+    sendResponse({ success: true });
+    return true;
+  }
+
   if (message.type === 'getIdleState') {
     chrome.storage.local.get(['lockInIdleMinutes', 'lockInIdleState'], (res) => {
       sendResponse({
@@ -314,23 +327,22 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
-  // ── getSessionProgress ────────────────────────────────────────────────────
   if (message.type === 'getSessionProgress') {
-    chrome.storage.local.get(['lockInActiveSession', 'lockInTimerRunning'], (res) => {
+    chrome.storage.local.get(['lockInActiveSession', 'lockInTimerRunning', 'lockInBreakRemaining', 'lockInOnBreak', 'lockInProgressPercent'], (res) => {
       const sess    = res.lockInActiveSession;
       const running = res.lockInTimerRunning || false;
       if (!sess || !running) {
         sendResponse({ running: false });
         return;
       }
-      const elapsed  = Math.floor((Date.now() - sess.startTime) / 1000);
+      const elapsed   = Math.floor((Date.now() - sess.startTime) / 1000);
       const remaining = Math.max(0, sess.durationSeconds - elapsed);
-      sendResponse({ running: true, remaining, elapsed, sess });
+      const progress  = res.lockInProgressPercent || Math.min(100, Math.max(0, Math.round((elapsed / sess.durationSeconds) * 100)));
+      sendResponse({ running: true, remaining, elapsed, sess, progress, isOnBreak: res.lockInOnBreak || false });
     });
     return true;
   }
 
-  // ── testNotification ───────────────────────────────────────────────────────
   if (message.type === 'testNotification') {
     chrome.notifications.create({
       type: 'basic',
@@ -342,70 +354,106 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  if (message.type === 'saveScheduledGoal') {
+    chrome.storage.local.set({ lockInScheduledGoalDuration: message.duration });
+    sendResponse({ success: true });
+    return true;
+  }
+
+  if (message.type === 'clearScheduled') {
+    const idx = message.idx;
+    chrome.storage.local.get(['lockInScheduled'], (res) => {
+      const scheduled = res.lockInScheduled || [];
+      if (idx !== undefined && idx >= 0 && idx < scheduled.length) {
+        scheduled.splice(idx, 1);
+        chrome.storage.local.set({ lockInScheduled: scheduled });
+        chrome.alarms.clear(`lockInSched_${idx}`);
+      }
+    });
+    sendResponse({ success: true });
+    return true;
+  }
+
+  if (message.type === 'delayScheduled') {
+    const { idx, delayMinutes } = message;
+    chrome.storage.local.get(['lockInScheduled'], (res) => {
+      const scheduled = res.lockInScheduled || [];
+      if (idx !== undefined && idx >= 0 && idx < scheduled.length) {
+        const sess = scheduled[idx];
+        const newStart = new Date(new Date(sess.scheduledStart).getTime() + delayMinutes * 60000);
+        const newEnd   = new Date(new Date(sess.scheduledEnd).getTime()   + delayMinutes * 60000);
+        sess.scheduledStart = newStart.toISOString();
+        sess.scheduledEnd   = newEnd.toISOString();
+        chrome.storage.local.set({ lockInScheduled: scheduled });
+        chrome.runtime.sendMessage({ type: 'testNotification', text: `Session delayed to ${newStart.toLocaleTimeString()}` });
+      }
+    });
+    sendResponse({ success: true });
+    return true;
+  }
+
   sendResponse({});
   return false;
 });
 
-// ── Alarm listener ────────────────────────────────────────────────────────────
 chrome.alarms.onAlarm.addListener((alarm) => {
 
-   if (alarm.name === 'lockInSessionEnd') {
-     chrome.storage.local.get(['lockInActiveSession', 'lockInIdleMinutes', 'lockInFocusToggles', 'lockInStreak'], (res) => {
-       const sess   = res.lockInActiveSession;
-       const idleMins = res.lockInIdleMinutes || 0;
-       if (!sess) return;
+  if (alarm.name === 'lockInSessionEnd') {
+    chrome.storage.local.get(['lockInActiveSession', 'lockInIdleMinutes', 'lockInFocusToggles', 'lockInStreak'], (res) => {
+      const sess     = res.lockInActiveSession;
+      const idleMins = res.lockInIdleMinutes || 0;
+      if (!sess) return;
 
-       let streak = res.lockInStreak || { streakDays: 0, lastSessionDate: null };
-       const today = new Date().toDateString();
-       if (streak.lastSessionDate !== today) {
-         streak.streakDays += 1;
-         streak.lastSessionDate = today;
-       }
+      let streak = res.lockInStreak || { streakDays: 0, lastSessionDate: null };
+      const today = new Date().toDateString();
+      if (streak.lastSessionDate !== today) {
+        streak.streakDays += 1;
+        streak.lastSessionDate = today;
+      }
 
-       const totalMins = Math.round(sess.durationSeconds / 60);
+      const totalMins   = Math.round(sess.durationSeconds / 60);
+      const breaksTaken = sess.breakFreqMinutes > 0 ? Math.floor(totalMins / sess.breakFreqMinutes) : 0;
 
-       // Calculate breaks taken: totalMins / breakFreqMinutes (if breakFreqMinutes > 0)
-       const breaksTaken = sess.breakFreqMinutes > 0 ? Math.floor(totalMins / sess.breakFreqMinutes) : 0;
+      const record = {
+        datetime:  new Date().toISOString(),
+        duration:  totalMins,
+        focusSites: res.lockInFocusToggles || {},
+        streakDays: streak.streakDays,
+        idleMinutes: idleMins,
+        breakFrequency:    sess.breakFreqMinutes    || 0,
+        breakDuration:     sess.breakDurationMinutes || 0,
+        scheduledStart:    sess.scheduledStart || null,
+        scheduledEnd:      sess.scheduledEnd   || null,
+        actualPerformance: {
+          focusedMinutes: Math.max(0, totalMins - idleMins),
+          breaksTaken:    breaksTaken,
+          idleMinutes:    idleMins
+        }
+      };
 
-       const record = {
-         datetime:  new Date().toISOString(),
-         duration:  totalMins,
-         focusSites: res.lockInFocusToggles || {},
-         streakDays: streak.streakDays,
-         idleMinutes: idleMins,
-         breakFrequency:    sess.breakFreqMinutes    || 0,
-         breakDuration:     sess.breakDurationMinutes || 0,
-         scheduledStart:    sess.scheduledStart || null,
-         scheduledEnd:      sess.scheduledEnd   || null,
-         actualPerformance: {
-           focusedMinutes: Math.max(0, totalMins - idleMins),
-           breaksTaken:    breaksTaken,
-           idleMinutes:    idleMins
-         }
-       };
+      logSessionHistory(record);
+      chrome.storage.local.set({
+        lockInStreak: streak,
+        lockInTimerRunning: false,
+        lockInActiveSession: null
+      });
 
-       logSessionHistory(record);
-       chrome.storage.local.set({
-         lockInStreak: streak,
-         lockInTimerRunning: false,
-         lockInActiveSession: null
-       });
-
-       chrome.notifications.create({
-         type: 'basic',
-         iconUrl: 'icons/icon48.png',
-         title: 'LockIn – Session Complete!',
-         message: `Session done! ${streak.streakDays}-day streak 🔥`
-       });
-     });
-   }
+      chrome.notifications.create({
+        type: 'basic',
+        iconUrl: 'icons/icon48.png',
+        title: 'LockIn – Session Complete!',
+        message: `Session done! ${streak.streakDays}-day streak 🔥`
+      });
+    });
+  }
 
   if (alarm.name.startsWith('lockInBreakStart_')) {
     chrome.notifications.create({
       type: 'basic',
       iconUrl: 'icons/icon48.png',
       title: 'LockIn – Break Time!',
-      message: 'Time for a scheduled break. Step away and recharge.'
+      message: 'Time for a scheduled break. Step away and recharge.',
+      buttons: [{ title: 'Continue' }]
     });
     chrome.storage.local.set({ lockInOnBreak: true });
   }
@@ -415,7 +463,8 @@ chrome.alarms.onAlarm.addListener((alarm) => {
       type: 'basic',
       iconUrl: 'icons/icon48.png',
       title: 'LockIn – Back to Work!',
-      message: 'Break over. Let\'s get back to focusing!'
+      message: 'Break over! Your session is paused. Click Continue to resume.',
+      buttons: [{ title: 'Continue' }]
     });
     chrome.storage.local.set({ lockInOnBreak: false });
   }
@@ -430,14 +479,57 @@ chrome.alarms.onAlarm.addListener((alarm) => {
           type: 'basic',
           iconUrl: 'icons/icon48.png',
           title: 'LockIn – Time to Focus!',
-          message: `Your scheduled session is starting now. Duration: ${sess.duration || 0} min.`
+          message: `Your scheduled session is starting now. Duration: ${sess.duration || 0} min.`,
+          buttons: [{ title: 'Start' }, { title: 'Delay 5m' }, { title: 'Skip' }]
         });
       }
     });
   }
 });
 
-// ── Restore state on startup ──────────────────────────────────────────────────
+chrome.notifications.onButtonClicked.addListener((notifId, buttonIndex) => {
+  chrome.storage.local.get(['lockInScheduled', 'lockInActiveSession', 'lockInTimerRunning'], (res) => {
+    const scheduled = res.lockInScheduled || [];
+
+    if (buttonIndex === 0 && scheduled.length > 0) {
+      // Start button - start the first scheduled session
+      const sess = scheduled[0];
+      chrome.runtime.sendMessage({
+        type: 'startSession',
+        durationSeconds: (sess.duration || 30) * 60,
+        breakFreqMinutes: sess.breakFrequency || 0,
+        breakDurationMinutes: sess.breakDurationMinutes || 5,
+        focusSites: {},
+        scheduledStart: sess.scheduledStart,
+        scheduledEnd: sess.scheduledEnd
+      });
+      scheduled.shift();
+      const now = Date.now();
+      const remaining = scheduled.filter(s => new Date(s.scheduledStart).getTime() > now);
+      chrome.storage.local.set({ lockInScheduled: remaining });
+    } else if (buttonIndex === 1 && scheduled.length > 0) {
+      // Delay 5m button
+      const sess = scheduled[0];
+      const newStart = new Date(new Date(sess.scheduledStart).getTime() + 5 * 60000);
+      const newEnd   = new Date(new Date(sess.scheduledEnd).getTime()   + 5 * 60000);
+      sess.scheduledStart = newStart.toISOString();
+      sess.scheduledEnd   = newEnd.toISOString();
+      chrome.storage.local.set({ lockInScheduled: scheduled });
+      chrome.runtime.sendMessage({ type: 'testNotification', text: `Session delayed to ${newStart.toLocaleTimeString()}` });
+    } else if (buttonIndex === 2 && scheduled.length > 0) {
+      // Skip button
+      scheduled.shift();
+      chrome.storage.local.set({ lockInScheduled: scheduled });
+      chrome.runtime.sendMessage({ type: 'testNotification', text: 'Session skipped.' });
+    }
+
+    if (buttonIndex === 0 && res.lockInOnBreak === true) {
+      // Continue from break in notification
+      chrome.storage.local.set({ lockInOnBreak: false });
+    }
+  });
+});
+
 chrome.runtime.onStartup.addListener(() => {
   chrome.storage.local.get([
     'lockInFocusToggles', 'lockInScheduled', 'lockInActiveSession', 'lockInTimerRunning'
@@ -456,9 +548,8 @@ chrome.runtime.onStartup.addListener(() => {
         }
       });
     }
-    // If a session was running before restart, reschedule end alarm
     if (result.lockInActiveSession && result.lockInTimerRunning) {
-      const sess = result.lockInActiveSession;
+      const sess    = result.lockInActiveSession;
       const elapsed = Math.floor((Date.now() - sess.startTime) / 1000);
       const remaining = Math.max(0, sess.durationSeconds - elapsed);
       if (remaining > 0) {

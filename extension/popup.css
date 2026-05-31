@@ -80,6 +80,12 @@ html, body {
 .streak-header.milestone {
   border-color: #ffa203;
   box-shadow: 0 0 12px rgba(255,162,3,0.5);
+  animation: milestone-pulse 2s infinite;
+}
+
+@keyframes milestone-pulse {
+  0%, 100% { box-shadow: 0 0 12px rgba(255,162,3,0.5); }
+  50% { box-shadow: 0 0 20px rgba(255,162,3,0.8); }
 }
 
 .compact-container { display: flex; align-items: center; }
@@ -220,6 +226,7 @@ html, body {
   border-radius: 10px;
   box-sizing: border-box;
   flex: 1;
+  min-height: 60px;
 }
 
 .today-text, .goal-text {
@@ -262,6 +269,7 @@ html, body {
   border-radius: 8px;
   padding: 6px 14px;
   border: 1px solid #a8d5b4;
+  flex-direction: column;
 }
 
 .break-text {
@@ -276,6 +284,24 @@ html, body {
   font-size: 18px;
   font-weight: bold;
   color: #166534;
+}
+
+.continue-btn {
+  margin-top: 8px;
+  padding: 6px 16px;
+  background: #547792;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-family: system-ui, sans-serif;
+  font-size: 12px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.continue-btn:hover {
+  background: #35577b;
 }
 
 /* ── Quick session buttons ─────────────────────────────────────────────────── */
@@ -512,6 +538,13 @@ html, body {
   margin-top: 4px;
 }
 
+.day_icon_wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .day_icon_wrapper img {
   height: 22px;
   width: 22px;
@@ -521,6 +554,34 @@ html, body {
 
 .day_icon_wrapper img.unlocked {
   opacity: 1;
+}
+
+.day_icon_wrapper.milestone-3 img,
+.day_icon_wrapper.milestone-7 img,
+.day_icon_wrapper.milestone-10 img {
+  filter: drop-shadow(0 0 4px rgba(255, 162, 3, 0.8));
+}
+
+.achievement-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(255, 162, 3, 0.15);
+  border-radius: 12px;
+  padding: 2px 8px;
+  margin-left: 6px;
+}
+
+.achievement-badge .fire-icon {
+  height: 14px;
+  width: 14px;
+}
+
+.achievement-badge .badge-text {
+  font-family: system-ui, sans-serif;
+  font-size: 10px;
+  font-weight: bold;
+  color: #ffa203;
 }
 
 /* ── Focus section ─────────────────────────────────────────────────────────── */
